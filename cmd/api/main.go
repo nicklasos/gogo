@@ -1,0 +1,83 @@
+package main
+
+import (
+	"log"
+
+	"myapp/config"
+	"myapp/internal/db"
+	"myapp/internal/users"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	echoSwagger "github.com/swaggo/echo-swagger"
+)
+
+// @title           MyApp API
+// @version         1.0
+// @description     A simple web API built with Go, Echo, and sqlc
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.url    http://www.swagger.io/support
+// @contact.email  support@swagger.io
+
+// @license.name  Apache 2.0
+// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host      localhost:8080
+// @BasePath  /
+
+func main() {
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal("Failed to load configuration:", err)
+	}
+
+	// Log startup information
+	log.Printf("Starting %s v%s in %s mode", cfg.AppName, cfg.AppVersion, cfg.Environment)
+	if cfg.Debug {
+		log.Println("Debug mode enabled")
+	}
+
+	// Initialize database connection
+	database, err := db.NewConnection(cfg)
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+	defer database.Close()
+
+	// Initialize Echo
+	e := echo.New()
+
+	// Middleware
+	if cfg.LogLevel == "info" || cfg.LogLevel == "debug" {
+		e.Use(middleware.Logger())
+	}
+	e.Use(middleware.Recover())
+	e.Use(middleware.CORS())
+
+	// Health check endpoint
+	e.GET("/health", func(c echo.Context) error {
+		return c.JSON(200, map[string]interface{}{
+			"status": "healthy",
+			"app":    cfg.AppName,
+			"version": cfg.AppVersion,
+			"env":    cfg.Environment,
+		})
+	})
+
+	// Routes
+	api := e.Group("/api/v1")
+	
+	// Register module routes
+	users.RegisterRoutes(api, database)
+
+	// Swagger route
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
+
+	// Start server
+	address := ":" + cfg.Port
+	log.Printf("Server starting on %s", address)
+	log.Fatal(e.Start(address))
+}

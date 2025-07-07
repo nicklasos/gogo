@@ -1,0 +1,10 @@
+version: "2"
+sql:
+  - engine: "mysql"
+    queries: "internal/users/queries.sql"
+    schema: ""
+    gen:
+      go:
+        package: "users"
+        out: "internal/users"
+        sql_package: "database/sql"
