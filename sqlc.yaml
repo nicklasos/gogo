@@ -1,8 +1,8 @@
 version: "2"
 sql:
-  - engine: "mysql"
+  - engine: "postgresql"
     queries: "internal/users/queries.sql"
-    schema: ""
+    schema: "migrations/"
     gen:
       go:
         package: "users"

@@ -6,7 +6,7 @@ import (
 
 	"myapp/config"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func NewConnection(cfg *config.Config) (*sql.DB, error) {
@@ -16,7 +16,7 @@ func NewConnection(cfg *config.Config) (*sql.DB, error) {
 
 	dsn := cfg.DatabaseURL
 
-	db, err := sql.Open("mysql", dsn)
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}

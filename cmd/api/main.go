@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"myapp/config"
+	_ "myapp/docs"
 	"myapp/internal/db"
 	"myapp/internal/users"
 
@@ -60,16 +61,16 @@ func main() {
 	// Health check endpoint
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(200, map[string]interface{}{
-			"status": "healthy",
-			"app":    cfg.AppName,
+			"status":  "healthy",
+			"app":     cfg.AppName,
 			"version": cfg.AppVersion,
-			"env":    cfg.Environment,
+			"env":     cfg.Environment,
 		})
 	})
 
 	// Routes
 	api := e.Group("/api/v1")
-	
+
 	// Register module routes
 	users.RegisterRoutes(api, database)
 

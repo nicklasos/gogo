@@ -35,9 +35,10 @@ HTTP Request → Handler → Service → sqlc → Database
 - **Queries**: SQL queries managed by sqlc, type-safe database operations
 
 ## 🔧 Technology Stack
-- **Go 1.21+** - Programming language
+- **Go 1.23+** - Programming language
 - **Echo v4** - Web framework
-- **MySQL 8.0+** - Database
+- **PostgreSQL 13+** - Database
+- **pgx/v5** - PostgreSQL driver
 - **sqlc** - Type-safe SQL code generation
 - **Goose** - Database migrations
 - **Swaggo** - Swagger documentation

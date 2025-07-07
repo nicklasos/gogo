@@ -1,6 +1,9 @@
 run:
 	go run ./cmd/api
 
+dev:
+	air
+
 build:
 	go build -o bin/api ./cmd/api
 
@@ -16,22 +19,28 @@ test:
 fmt:
 	go fmt ./...
 
-# Migration commands (requires DATABASE_URL environment variable)
+# Load .env file if it exists
+ifneq (,$(wildcard .env))
+    include .env
+    export
+endif
+
+# Migration commands (uses DATABASE_URL from .env or environment)
 migrate-up:
-	@if [ -z "$(DATABASE_URL)" ]; then echo "ERROR: DATABASE_URL environment variable is required"; exit 1; fi
-	goose -dir migrations mysql "$(DATABASE_URL)" up
+	@if [ -z "$(DATABASE_URL)" ]; then echo "ERROR: DATABASE_URL not found in .env file or environment"; exit 1; fi
+	goose -dir migrations postgres "$(DATABASE_URL)" up
 
 migrate-down:
-	@if [ -z "$(DATABASE_URL)" ]; then echo "ERROR: DATABASE_URL environment variable is required"; exit 1; fi
-	goose -dir migrations mysql "$(DATABASE_URL)" down
+	@if [ -z "$(DATABASE_URL)" ]; then echo "ERROR: DATABASE_URL not found in .env file or environment"; exit 1; fi
+	goose -dir migrations postgres "$(DATABASE_URL)" down
 
 migrate-status:
-	@if [ -z "$(DATABASE_URL)" ]; then echo "ERROR: DATABASE_URL environment variable is required"; exit 1; fi
-	goose -dir migrations mysql "$(DATABASE_URL)" status
+	@if [ -z "$(DATABASE_URL)" ]; then echo "ERROR: DATABASE_URL not found in .env file or environment"; exit 1; fi
+	goose -dir migrations postgres "$(DATABASE_URL)" status
 
 migrate-reset:
-	@if [ -z "$(DATABASE_URL)" ]; then echo "ERROR: DATABASE_URL environment variable is required"; exit 1; fi
-	goose -dir migrations mysql "$(DATABASE_URL)" reset
+	@if [ -z "$(DATABASE_URL)" ]; then echo "ERROR: DATABASE_URL not found in .env file or environment"; exit 1; fi
+	goose -dir migrations postgres "$(DATABASE_URL)" reset
 
 migrate-create:
 	@read -p "Enter migration name: " name; \
@@ -58,6 +67,9 @@ tidy:
 	go mod tidy
 
 clean:
-	rm -rf bin/ docs/
+	rm -rf bin/ docs/ tmp/
 
-.PHONY: run build sqlc swagger test fmt tidy clean
+air-install:
+	go install github.com/cosmtrek/air@latest
+
+.PHONY: run dev build sqlc swagger test fmt tidy clean air-install
