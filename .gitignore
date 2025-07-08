@@ -37,6 +37,9 @@ Thumbs.db
 logs/*
 !logs/.gitkeep
 
+# Temporary files and build artifacts
+tmp/
+
 # Database files (if using SQLite)
 *.db
 *.sqlite
