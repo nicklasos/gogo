@@ -15,6 +15,7 @@ type Config struct {
 
 	// Environment variables
 	DatabaseURL string
+	RedisURL    string
 	Port        string
 	Environment string
 	Debug       bool
@@ -34,6 +35,7 @@ func Load() (*Config, error) {
 
 		// Environment variables with defaults
 		DatabaseURL: getEnv("DATABASE_URL", ""),
+		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379/0"),
 		Port:        getEnv("PORT", "8080"),
 		Environment: getEnv("APP_ENV", "development"),
 		Debug:       getEnvBool("APP_DEBUG", false),

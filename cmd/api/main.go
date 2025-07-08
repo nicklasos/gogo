@@ -6,7 +6,9 @@ import (
 	"myapp/config"
 	_ "myapp/docs"
 	"myapp/internal"
+	"myapp/internal/cache"
 	"myapp/internal/db"
+	"myapp/internal/redis"
 	"myapp/internal/users"
 
 	"github.com/labstack/echo/v4"
@@ -30,26 +32,36 @@ import (
 // @BasePath  /
 
 func main() {
-	// Load configuration
+	// Config
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal("Failed to load configuration:", err)
 	}
 
-	// Log startup information
+	// Logger
 	log.Printf("Starting %s v%s in %s mode", cfg.AppName, cfg.AppVersion, cfg.Environment)
 	if cfg.Debug {
 		log.Println("Debug mode enabled")
 	}
 
-	// Initialize database connection
+	// DB
 	database, err := db.NewConnection(cfg)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	defer database.Close()
 
-	// Initialize Echo
+	// Redis
+	redisClient, err := redis.NewConnection(cfg)
+	if err != nil {
+		log.Fatal("Failed to connect to Redis:", err)
+	}
+	defer redisClient.Close()
+
+	// Cache
+	cacheService := cache.NewRedisCache(redisClient, cfg.AppName+":")
+
+	// Echo
 	e := echo.New()
 
 	// Middleware
@@ -69,12 +81,12 @@ func main() {
 		})
 	})
 
-	// Routes
 	api := e.Group("/api/v1")
 
 	app := &internal.App{
 		Config: cfg,
 		DB:     database,
+		Cache:  cacheService,
 		Api:    api,
 	}
 

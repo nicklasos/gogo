@@ -39,6 +39,8 @@ HTTP Request → Handler → Service → sqlc → Database
 - **Echo v4** - Web framework
 - **PostgreSQL 13+** - Database
 - **pgx/v5** - PostgreSQL driver
+- **Redis** - Caching and session storage
+- **go-redis/v9** - Redis client
 - **sqlc** - Type-safe SQL code generation
 - **Goose** - Database migrations
 - **Swaggo** - Swagger documentation
@@ -82,11 +84,46 @@ make sqlc            # Generate sqlc code
 make swagger         # Generate API docs
 ```
 
+## 🔴 Redis & Caching
+
+### Cache Service (Standard Go Pattern)
+```go
+// Example usage in services
+func (us *UserService) GetUserCached(ctx context.Context, id int64) (*User, error) {
+    var user User
+    key := fmt.Sprintf("user:%d", id)
+    
+    err := us.cache.Remember(ctx, key, 5*time.Minute, func() (interface{}, error) {
+        return us.queries.GetUserByID(ctx, id)
+    }, &user)
+    
+    return &user, err
+}
+```
+
+### Cache Interface
+- `Get(key, dest)` - Retrieve cached value (like json.Unmarshal)
+- `Set(key, value, ttl)` - Store value with TTL
+- `Remember(key, ttl, callback, dest)` - Cache-or-fetch pattern
+- `Delete(key)` / `Forget(key)` - Remove from cache
+- `Flush()` - Clear all cache entries
+- `Has(key)` - Check if key exists
+
+### Redis Configuration
+```go
+// Production-ready Redis settings
+PoolSize: 20               // Max connections
+MinIdleConns: 5            // Keep 5 idle connections  
+ConnMaxLifetime: 5min      // Recycle connections
+Timeouts: 3-5 seconds      // Read/write/dial timeouts
+```
+
 ## 📋 Code Conventions
 - **Handlers**: `GetUser`, `CreateUser`, `ListUsers`
 - **Services**: `UserService`, `OrderService`
 - **SQL queries**: `GetUserByID`, `CreateUser`, `ListUsers`
 - **Files**: `user_service.go`, `order_handler.go`
+- **Cache keys**: `user:123`, `posts:user:123`
 
 ## 🎯 Key Principles
 1. **Services own business logic** - Keep handlers thin
