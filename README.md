@@ -199,12 +199,6 @@ LOG_LEVEL=info
 - **Type-safe database operations** using sqlc
 - **Environment-driven configuration** - no hardcoded secrets
 
-### Request Flow
-```
-HTTP Request → Handler → Service → sqlc → Database
-                    ↘ Cache (Redis)
-```
-
 ### Layer Responsibilities
 - **Handlers**: HTTP request/response, basic validation, JSON serialization
 - **Services**: Business logic, input validation, complex workflows, uses sqlc directly
@@ -219,16 +213,16 @@ HTTP Request → Handler → Service → sqlc → Database
 - Production-ready connection pooling configured
 - SQL injection prevention via sqlc parameterized queries
 
-## 🚀 Production Ready
+## 🚀 Default Prams that should be changed in Production
 
-The project includes production-ready configurations:
+You should optimize this for your needs
 
-### Database Connection Pool
+### Database Connection Pool (internal/db/db.go)
 - Max 25 concurrent connections
 - Connection recycling every 5 minutes
 - Proper timeout handling
 
-### Redis Configuration
+### Redis Configuration (internal/redis/redis.go)
 - Connection pooling (20 max connections)
 - Automatic retries with backoff
 - Production timeouts and error handling
