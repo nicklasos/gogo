@@ -1,15 +1,11 @@
 package users
 
-import (
-	"database/sql"
+import "myapp/internal"
 
-	"github.com/labstack/echo/v4"
-)
+func RegisterRoutes(app *internal.App) {
+	handler := NewHandler(app.DB)
 
-func RegisterRoutes(api *echo.Group, db *sql.DB) {
-	handler := NewHandler(db)
-	
-	api.GET("/users", handler.ListUsers)
-	api.POST("/users", handler.CreateUser)
-	api.GET("/users/:id", handler.GetUser)
+	app.Api.GET("/users", handler.ListUsers)
+	app.Api.POST("/users", handler.CreateUser)
+	app.Api.GET("/users/:id", handler.GetUser)
 }

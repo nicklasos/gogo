@@ -10,14 +10,12 @@ import (
 
 // UserService contains business logic and uses sqlc directly
 type UserService struct {
-	queries *Queries  // sqlc generated
-	db      *sql.DB
+	queries *Queries // sqlc generated
 }
 
 func NewUserService(db *sql.DB) *UserService {
 	return &UserService{
-		queries: New(db),  // sqlc generated New function
-		db:      db,
+		queries: New(db), // sqlc generated New function
 	}
 }
 
@@ -27,7 +25,7 @@ func (us *UserService) CreateUser(ctx context.Context, name, email string) (*Use
 	if err := us.validateUserInput(name, email); err != nil {
 		return nil, err
 	}
-	
+
 	// Business logic: check if user already exists
 	exists, err := us.checkUserExists(ctx, email)
 	if err != nil {
@@ -36,32 +34,32 @@ func (us *UserService) CreateUser(ctx context.Context, name, email string) (*Use
 	if exists {
 		return nil, fmt.Errorf("user with email %s already exists", email)
 	}
-	
+
 	// Create user using sqlc directly
 	params := CreateUserParams{
 		Name:  name,
 		Email: email,
 	}
-	
+
 	result, err := us.queries.CreateUser(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
-	
+
 	// Get the created user
 	id, err := result.LastInsertId()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get created user ID: %w", err)
 	}
-	
+
 	user, err := us.queries.GetUserByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch created user: %w", err)
 	}
-	
+
 	// Business logic: perform post-creation tasks
 	go us.sendWelcomeNotification(user.Email)
-	
+
 	return &user, nil
 }
 
@@ -70,7 +68,7 @@ func (us *UserService) GetUser(ctx context.Context, id int64) (*User, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("invalid user ID: %d", id)
 	}
-	
+
 	user, err := us.queries.GetUserByID(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -78,7 +76,7 @@ func (us *UserService) GetUser(ctx context.Context, id int64) (*User, error) {
 		}
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
-	
+
 	return &user, nil
 }
 
@@ -93,7 +91,7 @@ func (us *UserService) UpdateUser(ctx context.Context, id int64, name, email str
 	if err := us.validateUserInput(name, email); err != nil {
 		return nil, err
 	}
-	
+
 	// Business logic: check if user exists
 	exists, err := us.userExists(ctx, id)
 	if err != nil {
@@ -102,7 +100,7 @@ func (us *UserService) UpdateUser(ctx context.Context, id int64, name, email str
 	if !exists {
 		return nil, fmt.Errorf("user with ID %d not found", id)
 	}
-	
+
 	// TODO: Add UpdateUser SQL query to queries.sql
 	// For now, this is a placeholder
 	return nil, fmt.Errorf("update user not implemented yet")
@@ -122,7 +120,7 @@ func (us *UserService) validateUserInput(name, email string) error {
 	if len(name) > 100 {
 		return fmt.Errorf("name cannot exceed 100 characters")
 	}
-	
+
 	// Validate email
 	email = strings.TrimSpace(strings.ToLower(email))
 	if email == "" {
@@ -131,7 +129,7 @@ func (us *UserService) validateUserInput(name, email string) error {
 	if !us.isValidEmail(email) {
 		return fmt.Errorf("invalid email format")
 	}
-	
+
 	return nil
 }
 

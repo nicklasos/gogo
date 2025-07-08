@@ -5,6 +5,7 @@ import (
 
 	"myapp/config"
 	_ "myapp/docs"
+	"myapp/internal"
 	"myapp/internal/db"
 	"myapp/internal/users"
 
@@ -71,8 +72,14 @@ func main() {
 	// Routes
 	api := e.Group("/api/v1")
 
+	app := &internal.App{
+		Config: cfg,
+		DB:     database,
+		Api:    api,
+	}
+
 	// Register module routes
-	users.RegisterRoutes(api, database)
+	users.RegisterRoutes(app)
 
 	// Swagger route
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
