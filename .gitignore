@@ -34,6 +34,8 @@ Thumbs.db
 
 # Logs
 *.log
+logs/*
+!logs/.gitkeep
 
 # Database files (if using SQLite)
 *.db

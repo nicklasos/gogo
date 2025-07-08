@@ -10,6 +10,13 @@ build:
 sqlc:
 	sqlc generate
 
+# Database schema commands
+schema-dump:
+	@if [ -z "$(DATABASE_URL)" ]; then echo "ERROR: DATABASE_URL not found in .env file or environment"; exit 1; fi
+	@echo "Dumping database schema to internal/db/schema.sql..."
+	pg_dump --schema-only --no-comments --no-owner --no-privileges "$(DATABASE_URL)" > internal/db/schema.sql
+	@echo "Schema dumped successfully!"
+
 swagger:
 	swag init --parseDependency --parseInternal -g cmd/api/main.go
 
@@ -72,4 +79,4 @@ clean:
 air-install:
 	go install github.com/cosmtrek/air@latest
 
-.PHONY: run dev build sqlc swagger test fmt tidy clean air-install
+.PHONY: run dev build sqlc schema-dump schema-dump-data schema-restore swagger test fmt tidy clean air-install

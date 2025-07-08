@@ -48,15 +48,15 @@ func New(cfg Config) (*Logger, error) {
 		writer = os.Stderr
 	case "both":
 		// Default: write to both file and stdout
-		file, err := createLogFile("app.log")
+		file, err := createLogFile("logs/app.log")
 		if err != nil {
 			return nil, err
 		}
 		writer = io.MultiWriter(file, os.Stdout)
 	default:
-		// File path specified or default to app.log
+		// File path specified or default to logs/app.log
 		if cfg.Output == "" {
-			cfg.Output = "app.log"
+			cfg.Output = "logs/app.log"
 		}
 		file, err := createLogFile(cfg.Output)
 		if err != nil {
