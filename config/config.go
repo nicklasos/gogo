@@ -20,6 +20,8 @@ type Config struct {
 	Environment string
 	Debug       bool
 	LogLevel    string
+	LogFormat   string
+	LogOutput   string
 	JWTSecret   string
 }
 
@@ -40,6 +42,8 @@ func Load() (*Config, error) {
 		Environment: getEnv("APP_ENV", "development"),
 		Debug:       getEnvBool("APP_DEBUG", false),
 		LogLevel:    getEnv("LOG_LEVEL", "info"),
+		LogFormat:   getEnv("LOG_FORMAT", "json"),
+		LogOutput:   getEnv("LOG_OUTPUT", "both"),
 		JWTSecret:   getEnv("JWT_SECRET", ""),
 	}, nil
 }

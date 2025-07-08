@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"myapp/config"
@@ -8,6 +9,8 @@ import (
 	"myapp/internal"
 	"myapp/internal/cache"
 	"myapp/internal/db"
+	"myapp/internal/logger"
+	custommiddleware "myapp/internal/middleware"
 	"myapp/internal/redis"
 	"myapp/internal/users"
 
@@ -39,14 +42,28 @@ func main() {
 	}
 
 	// Logger
-	log.Printf("Starting %s v%s in %s mode", cfg.AppName, cfg.AppVersion, cfg.Environment)
-	if cfg.Debug {
-		log.Println("Debug mode enabled")
+	logger, err := logger.New(logger.Config{
+		Level:     cfg.LogLevel,
+		Format:    cfg.LogFormat,
+		Output:    cfg.LogOutput,
+		AddSource: cfg.Debug,
+		RequestID: true,
+	})
+	if err != nil {
+		log.Fatal("Failed to initialize logger:", err)
 	}
+
+	logger.Info(context.TODO(), "Starting application",
+		"app_name", cfg.AppName,
+		"version", cfg.AppVersion,
+		"environment", cfg.Environment,
+		"debug", cfg.Debug,
+	)
 
 	// DB
 	database, err := db.NewConnection(cfg)
 	if err != nil {
+		logger.Error(context.TODO(), "Failed to connect to database", err)
 		log.Fatal("Failed to connect to database:", err)
 	}
 	defer database.Close()
@@ -54,6 +71,7 @@ func main() {
 	// Redis
 	redisClient, err := redis.NewConnection(cfg)
 	if err != nil {
+		logger.Error(context.TODO(), "Failed to connect to Redis", err)
 		log.Fatal("Failed to connect to Redis:", err)
 	}
 	defer redisClient.Close()
@@ -64,11 +82,13 @@ func main() {
 	// Echo
 	e := echo.New()
 
+	// Custom error handler
+	e.HTTPErrorHandler = custommiddleware.ErrorHandler(logger)
+
 	// Middleware
-	if cfg.LogLevel == "info" || cfg.LogLevel == "debug" {
-		e.Use(middleware.Logger())
-	}
-	e.Use(middleware.Recover())
+	e.Use(custommiddleware.RequestID(logger))
+	e.Use(custommiddleware.Recovery(logger))
+	e.Use(custommiddleware.RequestLogging(logger))
 	e.Use(middleware.CORS())
 
 	// Health check endpoint
@@ -87,6 +107,7 @@ func main() {
 		Config: cfg,
 		DB:     database,
 		Cache:  cacheService,
+		Logger: logger,
 		Api:    api,
 	}
 
@@ -98,6 +119,9 @@ func main() {
 
 	// Start server
 	address := ":" + cfg.Port
-	log.Printf("Server starting on %s", address)
-	log.Fatal(e.Start(address))
+	logger.Info(context.TODO(), "Server starting", "address", address)
+	if err := e.Start(address); err != nil {
+		logger.Error(context.TODO(), "Server failed to start", err, "address", address)
+		log.Fatal(err)
+	}
 }
