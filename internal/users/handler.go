@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -27,19 +27,21 @@ func NewHandler(db *sql.DB) *Handler {
 // @Failure      400  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Router       /users/{id} [get]
-func (h *Handler) GetUser(c echo.Context) error {
+func (h *Handler) GetUser(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid user ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
 	}
 
-	user, err := h.service.GetUser(c.Request().Context(), id)
+	user, err := h.service.GetUser(c.Request.Context(), id)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
 	}
 
-	return c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, user)
 }
 
 // CreateUser godoc
@@ -52,18 +54,20 @@ func (h *Handler) GetUser(c echo.Context) error {
 // @Success      201   {object}  map[string]string
 // @Failure      400   {object}  map[string]string
 // @Router       /users [post]
-func (h *Handler) CreateUser(c echo.Context) error {
+func (h *Handler) CreateUser(c *gin.Context) {
 	var params CreateUserParams
-	if err := c.Bind(&params); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
 	}
 
-	user, err := h.service.CreateUser(c.Request().Context(), params.Name, params.Email)
+	user, err := h.service.CreateUser(c.Request.Context(), params.Name, params.Email)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
-	return c.JSON(http.StatusCreated, map[string]interface{}{
+	c.JSON(http.StatusCreated, gin.H{
 		"user":    user,
 		"message": "User created successfully",
 	})
@@ -78,11 +82,12 @@ func (h *Handler) CreateUser(c echo.Context) error {
 // @Success      200  {array}   User
 // @Failure      500  {object}  map[string]string
 // @Router       /users [get]
-func (h *Handler) ListUsers(c echo.Context) error {
-	users, err := h.service.GetAllUsers(c.Request().Context())
+func (h *Handler) ListUsers(c *gin.Context) {
+	users, err := h.service.GetAllUsers(c.Request.Context())
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
-	return c.JSON(http.StatusOK, users)
+	c.JSON(http.StatusOK, users)
 }

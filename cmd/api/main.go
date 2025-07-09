@@ -14,9 +14,10 @@ import (
 	"myapp/internal/redis"
 	"myapp/internal/users"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	echoSwagger "github.com/swaggo/echo-swagger"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	ginSwagger "github.com/swaggo/gin-swagger"
+	swaggerFiles "github.com/swaggo/files"
 )
 
 // @title           MyApp API
@@ -79,21 +80,19 @@ func main() {
 	// Cache
 	cacheService := cache.NewRedisCache(redisClient, cfg.AppName+":")
 
-	// Echo
-	e := echo.New()
-
-	// Custom error handler
-	e.HTTPErrorHandler = custommiddleware.ErrorHandler(logger)
+	// Gin
+	r := gin.New()
 
 	// Middleware
-	e.Use(custommiddleware.RequestID(logger))
-	e.Use(custommiddleware.Recovery(logger))
-	e.Use(custommiddleware.RequestLogging(logger))
-	e.Use(middleware.CORS())
+	r.Use(custommiddleware.RequestID(logger))
+	r.Use(custommiddleware.Recovery(logger))
+	r.Use(custommiddleware.RequestLogging(logger))
+	r.Use(custommiddleware.ErrorHandler(logger))
+	r.Use(cors.Default())
 
 	// Health check endpoint
-	e.GET("/health", func(c echo.Context) error {
-		return c.JSON(200, map[string]interface{}{
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
 			"status":  "healthy",
 			"app":     cfg.AppName,
 			"version": cfg.AppVersion,
@@ -101,7 +100,7 @@ func main() {
 		})
 	})
 
-	api := e.Group("/api/v1")
+	api := r.Group("/api/v1")
 
 	app := &internal.App{
 		Config: cfg,
@@ -115,12 +114,12 @@ func main() {
 	users.RegisterRoutes(app)
 
 	// Swagger route
-	e.GET("/swagger/*", echoSwagger.WrapHandler)
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Start server
 	address := ":" + cfg.Port
 	logger.Info(context.TODO(), "Server starting", "address", address)
-	if err := e.Start(address); err != nil {
+	if err := r.Run(address); err != nil {
 		logger.Error(context.TODO(), "Server failed to start", err, "address", address)
 		log.Fatal(err)
 	}

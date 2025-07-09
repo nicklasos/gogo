@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Logger wraps slog.Logger with additional context methods
@@ -41,7 +42,10 @@ func New(cfg Config) (*Logger, error) {
 
 	// Configure output writer
 	var writer io.Writer
-	switch cfg.Output {
+	// Trim whitespace from config value to handle potential formatting issues
+	output := strings.TrimSpace(cfg.Output)
+	
+	switch output {
 	case "stdout":
 		writer = os.Stdout
 	case "stderr":
@@ -55,10 +59,10 @@ func New(cfg Config) (*Logger, error) {
 		writer = io.MultiWriter(file, os.Stdout)
 	default:
 		// File path specified or default to logs/app.log
-		if cfg.Output == "" {
-			cfg.Output = "logs/app.log"
+		if output == "" {
+			output = "logs/app.log"
 		}
-		file, err := createLogFile(cfg.Output)
+		file, err := createLogFile(output)
 		if err != nil {
 			return nil, err
 		}

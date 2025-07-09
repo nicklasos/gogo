@@ -7,7 +7,7 @@ import (
 	"myapp/internal/cache"
 	"myapp/internal/logger"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 )
 
 type App struct {
@@ -15,5 +15,5 @@ type App struct {
 	DB     *sql.DB
 	Cache  cache.Cache
 	Logger *logger.Logger
-	Api    *echo.Group
+	Api    *gin.RouterGroup
 }
