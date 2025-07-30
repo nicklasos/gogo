@@ -103,18 +103,9 @@ func ErrorHandler(log *logger.Logger) gin.HandlerFunc {
 				message = err.Error()
 			}
 
-			// Log all 5xx errors and some 4xx errors
+			// Log only 5xx errors (server errors)
 			if code >= 500 {
 				log.Error(ctx, "HTTP server error", err.Err,
-					"status_code", code,
-					"error_message", message,
-					"method", c.Request.Method,
-					"uri", c.Request.URL.Path,
-				)
-			} else if code == 404 || code == 401 || code == 403 {
-				// Log important 4xx errors at warn level
-				ctxLogger := log.FromContext(ctx)
-				ctxLogger.Warn("HTTP client error",
 					"status_code", code,
 					"error_message", message,
 					"method", c.Request.Method,

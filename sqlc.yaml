@@ -1,10 +1,16 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    queries: "internal/users/queries.sql"
+    queries: "internal/db/queries"
     schema: "migrations/"
     gen:
       go:
-        package: "users"
-        out: "internal/users"
-        sql_package: "database/sql"
+        package: "db"
+        out: "internal/db"
+        sql_package: "pgx/v5"
+        emit_db_tags: true
+        emit_json_tags: true
+        emit_prepared_queries: false
+        emit_interface: false
+        emit_exact_table_names: false
+        omit_unused_structs: true

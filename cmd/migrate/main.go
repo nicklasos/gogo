@@ -10,18 +10,19 @@ import (
 	"myapp/config"
 	"myapp/internal/db"
 
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
-	_ "github.com/go-sql-driver/mysql"
 )
 
 const (
-	dialect    = "mysql"
+	dialect    = "postgres"
 	migrationsDir = "migrations"
 )
 
 var (
 	flags = flag.NewFlagSet("migrate", flag.ExitOnError)
 	dir   = flags.String("dir", migrationsDir, "directory with migration files")
+	test  = flags.Bool("test", false, "use test database instead of main database")
 )
 
 func main() {
@@ -42,6 +43,14 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
+	// Use test database if --test flag is provided
+	if *test {
+		if cfg.TestDatabaseURL == "" {
+			log.Fatalf("TEST_DATABASE_URL is required when using --test flag")
+		}
+		cfg.DatabaseURL = cfg.TestDatabaseURL
+	}
+
 	// Connect to database
 	database, err := db.NewConnection(cfg)
 	if err != nil {
@@ -49,8 +58,11 @@ func main() {
 	}
 	defer database.Close()
 
+	// Get underlying database connection for goose compatibility
+	sqlDB := stdlib.OpenDB(*database.Config().ConnConfig)
+
 	// Run the migration command
-	if err := runGoose(database, command, args[1:]...); err != nil {
+	if err := runGoose(sqlDB, command, args[1:]...); err != nil {
 		log.Fatalf("Migration failed: %v", err)
 	}
 }
@@ -119,6 +131,7 @@ func usage() {
 	flags.PrintDefaults()
 	fmt.Println("\nExamples:")
 	fmt.Println("  go run cmd/migrate/main.go up")
+	fmt.Println("  go run cmd/migrate/main.go --test up")
 	fmt.Println("  go run cmd/migrate/main.go down")
 	fmt.Println("  go run cmd/migrate/main.go status")
 	fmt.Println("  go run cmd/migrate/main.go create add_user_avatar")

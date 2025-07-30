@@ -5,24 +5,24 @@ import (
 	"log"
 
 	"myapp/config"
-	_ "myapp/docs"
+	"myapp/docs"
 	"myapp/internal"
 	"myapp/internal/cache"
+	"myapp/internal/cities"
 	"myapp/internal/db"
 	"myapp/internal/logger"
 	custommiddleware "myapp/internal/middleware"
 	"myapp/internal/redis"
-	"myapp/internal/users"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // @title           MyApp API
 // @version         1.0
-// @description     A simple web API built with Go, Echo, and sqlc
+// @description     Api for SmartCity project
 // @termsOfService  http://swagger.io/terms/
 
 // @contact.name   API Support
@@ -32,8 +32,13 @@ import (
 // @license.name  Apache 2.0
 // @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host      localhost:8080
+// @host      localhost:8181
 // @BasePath  /
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 
 func main() {
 	// Config
@@ -83,10 +88,12 @@ func main() {
 	// Gin
 	r := gin.New()
 
+	r.RedirectTrailingSlash = false
+
 	// Middleware
 	r.Use(custommiddleware.RequestID(logger))
 	r.Use(custommiddleware.Recovery(logger))
-	r.Use(custommiddleware.RequestLogging(logger))
+	// r.Use(custommiddleware.RequestLogging(logger))
 	r.Use(custommiddleware.ErrorHandler(logger))
 	r.Use(cors.Default())
 
@@ -103,17 +110,19 @@ func main() {
 	api := r.Group("/api/v1")
 
 	app := &internal.App{
-		Config: cfg,
-		DB:     database,
-		Cache:  cacheService,
-		Logger: logger,
-		Api:    api,
+		Config:  cfg,
+		DB:      database,
+		Queries: db.New(database),
+		Cache:   cacheService,
+		Logger:  logger,
+		Api:     api,
 	}
 
 	// Register module routes
-	users.RegisterRoutes(app)
+	cities.RegisterRoutes(app)
 
-	// Swagger route
+	// Swagger route - set host dynamically
+	docs.SwaggerInfo.Host = cfg.AppURL
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Start server

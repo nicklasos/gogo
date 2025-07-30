@@ -1,19 +1,21 @@
 package internal
 
 import (
-	"database/sql"
 	"myapp/config"
 	_ "myapp/docs"
 	"myapp/internal/cache"
+	"myapp/internal/db"
 	"myapp/internal/logger"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type App struct {
-	Config *config.Config
-	DB     *sql.DB
-	Cache  cache.Cache
-	Logger *logger.Logger
-	Api    *gin.RouterGroup
+	Config  *config.Config
+	DB      *pgxpool.Pool
+	Queries *db.Queries
+	Cache   cache.Cache
+	Logger  *logger.Logger
+	Api     *gin.RouterGroup
 }

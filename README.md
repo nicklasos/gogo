@@ -70,6 +70,7 @@ make run
 - **Goose** - Database migrations
 - **Air** - Hot reload for development
 - **Swagger** - API documentation
+- **Testify** - Testing framework
 
 ## 📋 Available Commands
 
@@ -78,7 +79,11 @@ make run
 make run              # Run the server
 make dev              # Run with hot reload (air)
 make build            # Build the binary
-make test             # Run tests
+make test             # Run all tests
+make test-unit        # Run unit tests only
+make test-integration # Run integration tests only
+make test-verbose     # Run tests with verbose output
+make test-coverage    # Run tests with coverage
 make fmt              # Format code
 ```
 
@@ -90,6 +95,11 @@ make migrate-down     # Rollback migration
 make migrate-status   # Check migration status
 make migrate-create   # Create new migration
 make sqlc            # Generate sqlc code
+
+# Test Database
+make test-db-setup    # Set up test database
+make test-db-reset    # Reset test database
+make test-with-db     # Run tests with database setup
 ```
 
 ### Documentation
@@ -158,9 +168,81 @@ myapp/
 
 ## 🧪 Testing
 
+### Laravel-Style Database Testing
+
+This project uses a **Laravel-style testing approach** with database transaction rollback:
+- **Real Database Testing** - Uses actual PostgreSQL (no mocking)
+- **Transaction Rollback** - Each test runs in isolation with automatic cleanup
+- **Test Database Separation** - Uses `TEST_DATABASE_URL` environment variable
+
+### Test Structure
+```
+tests/
+├── helpers/
+│   ├── db_helper.go      # Transaction rollback helper
+│   └── fixtures.go       # Test data creation
+├── unit/
+│   ├── news_service_test.go
+│   └── feed_service_test.go
+└── integration/
+    └── news_api_test.go
+```
+
+### Running Tests
 ```bash
 make test              # Run all tests
+make test-unit         # Run unit tests only
+make test-integration  # Run integration tests only
+make test-verbose      # Run tests with verbose output
+make test-coverage     # Run tests with coverage
+make test-db-setup     # Set up test database
+make test-db-reset     # Reset test database
+make test-with-db      # Run tests with database setup
 ```
+
+### Test Configuration
+
+Add to your `.env` file:
+```bash
+# Test database (separate from main database)
+TEST_DATABASE_URL=postgres://postgres@localhost:5432/skeleton2025_test?sslmode=disable
+```
+
+### VSCode Integration
+
+To run tests from VSCode (clicking test icons), ensure `.vscode/settings.json` includes:
+```json
+{
+    "go.testEnvFile": "${workspaceFolder}/.env",
+    "go.testFlags": ["-v"]
+}
+```
+
+This ensures VSCode loads environment variables when running tests directly.
+
+### Test Pattern Example
+```go
+func TestServiceMethod(t *testing.T) {
+    helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
+        // Setup test data
+        city := helpers.CreateTestCity(t, ctx, tx)
+        
+        // Test service method
+        service := NewService(queries)
+        result, err := service.Method(ctx, city.ID)
+        
+        // Assertions
+        require.NoError(t, err)
+        assert.Equal(t, expected, result)
+    })
+}
+```
+
+### Test Coverage
+- **Unit Tests**: Business logic, validation, data processing
+- **Integration Tests**: HTTP endpoints, request/response handling
+- **Edge Cases**: Error conditions, boundary values
+- **Multi-tenant**: City isolation, data separation
 
 ## 🔧 Environment Variables
 
@@ -171,10 +253,12 @@ Copy `.env.example` to `.env` and configure:
 - `PORT` - Server port (default: 8080)
 - `APP_ENV` - Application environment
 - `LOG_LEVEL` - Logging level
+- `TEST_DATABASE_URL` - Test database connection string (separate from main DB)
 
 ### Example .env
 ```bash
 DATABASE_URL=postgres://postgres@localhost:5432/skeleton2025?sslmode=disable
+TEST_DATABASE_URL=postgres://postgres@localhost:5432/skeleton2025_test?sslmode=disable
 REDIS_URL=redis://localhost:6379/0
 PORT=8080
 APP_ENV=development
@@ -232,3 +316,6 @@ You should optimize this for your needs
 - **API Documentation**: Available at `/swagger/index.html` when running
 - **Architecture Guide**: See `CLAUDE.md` for detailed architectural decisions
 - **Development Patterns**: Consistent patterns for adding new modules
+
+# TODO
+- Place city_id right after the id column

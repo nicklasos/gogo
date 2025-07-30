@@ -14,15 +14,17 @@ type Config struct {
 	AppVersion string
 
 	// Environment variables
-	DatabaseURL string
-	RedisURL    string
-	Port        string
-	Environment string
-	Debug       bool
-	LogLevel    string
-	LogFormat   string
-	LogOutput   string
-	JWTSecret   string
+	DatabaseURL     string
+	TestDatabaseURL string
+	RedisURL        string
+	Port            string
+	Environment     string
+	Debug           bool
+	LogLevel        string
+	LogFormat       string
+	LogOutput       string
+	JWTSecret       string
+	AppURL          string
 }
 
 // Load loads configuration from environment
@@ -36,15 +38,17 @@ func Load() (*Config, error) {
 		AppVersion: "1.0.0",
 
 		// Environment variables with defaults
-		DatabaseURL: getEnv("DATABASE_URL", ""),
-		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379/0"),
-		Port:        getEnv("PORT", "8080"),
-		Environment: getEnv("APP_ENV", "development"),
-		Debug:       getEnvBool("APP_DEBUG", false),
-		LogLevel:    getEnv("LOG_LEVEL", "info"),
-		LogFormat:   getEnv("LOG_FORMAT", "json"),
-		LogOutput:   getEnv("LOG_OUTPUT", "both"),
-		JWTSecret:   getEnv("JWT_SECRET", ""),
+		DatabaseURL:     getEnv("DATABASE_URL", ""),
+		TestDatabaseURL: getEnv("TEST_DATABASE_URL", ""),
+		RedisURL:        getEnv("REDIS_URL", "redis://localhost:6379/1"),
+		Port:            getEnv("PORT", "8181"),
+		Environment:     getEnv("APP_ENV", "development"),
+		Debug:           getEnvBool("APP_DEBUG", false),
+		LogLevel:        getEnv("LOG_LEVEL", "info"),
+		LogFormat:       getEnv("LOG_FORMAT", "json"),
+		LogOutput:       getEnv("LOG_OUTPUT", "both"),
+		JWTSecret:       getEnv("JWT_SECRET", ""),
+		AppURL:          getEnv("APP_URL", "localhost:8181"),
 	}, nil
 }
 
