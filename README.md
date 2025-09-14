@@ -1,6 +1,8 @@
 # MyApp - Go Web API
 
-A modern Go web API built with Echo, PostgreSQL, Redis, sqlc, and Goose migrations.
+A modern Go web API built with Gin, PostgreSQL, Redis, sqlc, and Goose.
+
+[img](logo.jpg)
 
 ## 🚀 Quick Start
 
@@ -28,40 +30,32 @@ cp .env.example .env
 # Edit .env with your database and Redis credentials
 ```
 
-3. **Create database:**
-```bash
-createdb skeleton2025
-```
-
-4. **Run migrations:**
+3. **Run migrations:**
 ```bash
 # Database URL is loaded automatically from .env
 make migrate-up
 ```
 
-5. **Generate sqlc code:**
+4. **Generate sqlc code:**
 ```bash
 make sqlc
 ```
 
-6. **Generate Swagger docs:**
+5. **Generate Swagger docs:**
 ```bash
 make swagger
 ```
 
-7. **Run the server:**
+6. **Run the server:**
 ```bash
 # With hot reload (recommended for development)
 make dev
-
-# Or regular run
-make run
 ```
 
 ## 🔧 Technology Stack
 
 - **Go 1.23+** - Programming language
-- **Echo v4** - Web framework  
+- **Gin** - Web framework  
 - **PostgreSQL 13+** - Database
 - **pgx/v5** - PostgreSQL driver
 - **Redis** - Caching and session storage
@@ -94,12 +88,14 @@ make migrate-up       # Apply migrations
 make migrate-down     # Rollback migration
 make migrate-status   # Check migration status
 make migrate-create   # Create new migration
-make sqlc            # Generate sqlc code
+make sqlc             # Generate sqlc code
 
 # Test Database
-make test-db-setup    # Set up test database
-make test-db-reset    # Reset test database
-make test-with-db     # Run tests with database setup
+make test-migrate-up    # Migrate test db
+make test-migrate-down  # Migrate rollback for test db
+make test-db-setup      # Set up test database
+make test-db-reset      # Reset test database
+make test-with-db       # Run tests with database setup
 ```
 
 ### Documentation
@@ -150,14 +146,12 @@ myapp/
 │   ├── api/main.go          # Main application
 │   └── migrate/main.go      # Migration tool
 ├── internal/
-│   ├── db/db.go            # Database connection
+│   ├── db/db.go            # Database connection and sql files
 │   ├── redis/redis.go      # Redis connection
 │   ├── cache/cache.go      # Cache service
 │   └── users/              # Users module
 │       ├── handler.go      # HTTP handlers
 │       ├── user_service.go # Business logic
-│       ├── queries.sql     # SQL queries
-│       ├── queries_gen.go  # Generated sqlc code
 │       └── routes.go       # Route registration
 ├── migrations/             # Database migrations
 ├── docs/                   # Generated Swagger docs
@@ -264,16 +258,6 @@ PORT=8080
 APP_ENV=development
 LOG_LEVEL=info
 ```
-
-## 📦 Dependencies
-
-- [Echo](https://echo.labstack.com/) - Web framework
-- [pgx](https://github.com/jackc/pgx) - PostgreSQL driver
-- [go-redis](https://github.com/redis/go-redis) - Redis client
-- [sqlc](https://sqlc.dev/) - Generate type-safe Go from SQL
-- [Goose](https://github.com/pressly/goose) - Database migrations
-- [Air](https://github.com/cosmtrek/air) - Hot reload
-- [Swaggo](https://github.com/swaggo/swag) - Swagger documentation
 
 ## 🏗️ Architecture
 
