@@ -2,7 +2,7 @@
 
 A modern Go web API built with Gin, PostgreSQL, Redis, sqlc, and Goose.
 
-<img src="logo.jpg" alt="Logo" width="200"/>
+<img src="logo.jpg" alt="Logo" max-width="400"/>
 
 ## 🚀 Quick Start
 
