@@ -7,15 +7,15 @@ import (
 	"log"
 	"os"
 
-	"myapp/config"
-	"myapp/internal/db"
+	"app/config"
+	"app/internal/db"
 
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 )
 
 const (
-	dialect    = "postgres"
+	dialect       = "postgres"
 	migrationsDir = "migrations"
 )
 

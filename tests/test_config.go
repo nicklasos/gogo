@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"myapp/config"
+	"app/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
@@ -22,11 +22,11 @@ func GetTestDBPool() *pgxpool.Pool {
 	once.Do(func() {
 		// Try to load .env file from common locations
 		envPaths := []string{
-			".env",                    // Current directory
-			"../.env",                 // Parent directory
-			"../../.env",              // Two levels up
+			".env",       // Current directory
+			"../.env",    // Parent directory
+			"../../.env", // Two levels up
 		}
-		
+
 		var envLoaded bool
 		for _, path := range envPaths {
 			if err := godotenv.Load(path); err == nil {
@@ -35,7 +35,7 @@ func GetTestDBPool() *pgxpool.Pool {
 				break
 			}
 		}
-		
+
 		if !envLoaded {
 			log.Printf("Could not load .env file from any location, using system environment variables")
 		}

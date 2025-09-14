@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"myapp/internal/logger"
+	"app/internal/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -14,23 +14,23 @@ import (
 func RequestLogging(log *logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
-		
+
 		// Process request
 		c.Next()
-		
+
 		// Log after request completes
 		latency := time.Since(start)
 		ctxLogger := log.FromContext(c.Request.Context())
-		
+
 		status := c.Writer.Status()
 		method := c.Request.Method
 		path := c.Request.URL.Path
 		ip := c.ClientIP()
 		userAgent := c.Request.UserAgent()
-		
+
 		// Get any errors from context
 		errors := c.Errors.ByType(gin.ErrorTypeAny)
-		
+
 		if len(errors) > 0 {
 			ctxLogger.Error("HTTP request failed",
 				"status", status,
@@ -86,18 +86,18 @@ func RequestID(log *logger.Logger) gin.HandlerFunc {
 func ErrorHandler(log *logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
-		
+
 		// Check if there are any errors
 		if len(c.Errors) > 0 {
 			err := c.Errors.Last()
 			ctx := c.Request.Context()
-			
+
 			// Default to 500 if not set
 			code := c.Writer.Status()
 			if code == 200 {
 				code = 500
 			}
-			
+
 			message := "Internal Server Error"
 			if err.Error() != "" {
 				message = err.Error()
@@ -135,7 +135,7 @@ func ErrorHandler(log *logger.Logger) gin.HandlerFunc {
 func Recovery(log *logger.Logger) gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
 		ctx := c.Request.Context()
-		
+
 		// Convert recovered value to error
 		var err error
 		if e, ok := recovered.(error); ok {
@@ -143,12 +143,12 @@ func Recovery(log *logger.Logger) gin.HandlerFunc {
 		} else {
 			err = fmt.Errorf("panic: %v", recovered)
 		}
-		
+
 		log.Error(ctx, "Panic recovered", err,
 			"method", c.Request.Method,
 			"uri", c.Request.URL.Path,
 		)
-		
+
 		// Send error response
 		c.JSON(500, gin.H{
 			"error":      "Internal Server Error",

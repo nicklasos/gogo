@@ -1,6 +1,6 @@
 package cities
 
-import "myapp/internal"
+import "app/internal"
 
 func RegisterRoutes(app *internal.App) {
 	handler := NewHandler(app)

@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	"myapp/internal/cities"
-	"myapp/internal/db"
-	"myapp/tests/helpers"
+	"app/internal/cities"
+	"app/internal/db"
+	"app/tests/helpers"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +41,7 @@ func TestCitiesAPI_ListCities(t *testing.T) {
 			assert.Len(t, response.Data, 3)
 
 			// Cities should be ordered by name (alphabetical)
-			
+
 		})
 	})
 

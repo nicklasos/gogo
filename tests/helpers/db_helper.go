@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"myapp/internal/db"
-	"myapp/tests"
+	"app/internal/db"
+	"app/tests"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"

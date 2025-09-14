@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"myapp/internal/db"
+	"app/internal/db"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"

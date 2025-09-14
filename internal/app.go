@@ -1,11 +1,11 @@
 package internal
 
 import (
-	"myapp/config"
-	_ "myapp/docs"
-	"myapp/internal/cache"
-	"myapp/internal/db"
-	"myapp/internal/logger"
+	"app/config"
+	_ "app/docs"
+	"app/internal/cache"
+	"app/internal/db"
+	"app/internal/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"

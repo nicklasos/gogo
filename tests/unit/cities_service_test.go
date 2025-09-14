@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"myapp/internal/cities"
-	"myapp/internal/db"
-	"myapp/tests/helpers"
+	"app/internal/cities"
+	"app/internal/db"
+	"app/tests/helpers"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"

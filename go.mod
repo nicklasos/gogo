@@ -1,4 +1,4 @@
-module myapp
+module app
 
 go 1.24.5
 
@@ -65,4 +65,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace myapp/internal/maps => ./internal/maps
+replace app/internal/maps => ./internal/maps

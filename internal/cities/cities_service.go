@@ -3,8 +3,8 @@ package cities
 import (
 	"context"
 
-	"myapp/internal/db"
-	apperrors "myapp/internal/errors"
+	"app/internal/db"
+	apperrors "app/internal/errors"
 )
 
 // CitiesService contains business logic for cities operations

@@ -1,9 +1,9 @@
 package cities
 
 import (
-	"myapp/internal"
-	"myapp/internal/db"
-	apperrors "myapp/internal/errors"
+	"app/internal"
+	"app/internal/db"
+	apperrors "app/internal/errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"myapp/internal"
-	"myapp/internal/cities"
-	"myapp/internal/db"
-	"myapp/internal/logger"
+	"app/internal"
+	"app/internal/cities"
+	"app/internal/db"
+	"app/internal/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"

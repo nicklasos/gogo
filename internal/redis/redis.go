@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"myapp/config"
+	"app/config"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -41,9 +41,9 @@ func NewConnection(cfg *config.Config) (*redis.Client, error) {
 // configureRedisOptions sets production-ready Redis options
 func configureRedisOptions(opt *redis.Options) {
 	// Connection pool settings
-	opt.PoolSize = 20               // Max number of connections
-	opt.MinIdleConns = 5            // Min idle connections to keep
-	opt.MaxIdleConns = 10           // Max idle connections
+	opt.PoolSize = 20     // Max number of connections
+	opt.MinIdleConns = 5  // Min idle connections to keep
+	opt.MaxIdleConns = 10 // Max idle connections
 	opt.ConnMaxLifetime = 5 * time.Minute
 	opt.ConnMaxIdleTime = 5 * time.Minute
 
