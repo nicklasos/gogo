@@ -7,6 +7,15 @@ dev:
 build:
 	go build -o bin/api ./cmd/api
 
+build-cron:
+	go build -o bin/gogo-cron ./cmd/cron
+
+run-cron:
+	go run ./cmd/cron
+
+run-cron-test-db:
+	go run ./cmd/cron --test-db
+
 sqlc:
 	sqlc generate
 

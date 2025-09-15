@@ -13,6 +13,7 @@ import (
 	"app/internal/logger"
 	custommiddleware "app/internal/middleware"
 	"app/internal/redis"
+	"app/internal/scheduler"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -116,6 +117,28 @@ func main() {
 		Cache:   cacheService,
 		Logger:  logger,
 		Api:     api,
+	}
+
+	// Initialize scheduler if enabled
+	if cfg.EnableScheduler {
+		deps := &scheduler.Dependencies{
+			Config:  cfg,
+			DB:      database,
+			Queries: app.Queries,
+			Logger:  logger,
+		}
+
+		cronScheduler := scheduler.NewScheduler(deps)
+		if err := cronScheduler.RegisterJobs(); err != nil {
+			logger.Error(context.TODO(), "Failed to register scheduler jobs", err)
+			log.Fatal("Failed to register scheduler jobs:", err)
+		}
+
+		cronScheduler.Start()
+		logger.Info(context.TODO(), "Scheduler started in integrated mode")
+
+		// Ensure graceful shutdown of scheduler
+		defer cronScheduler.Stop()
 	}
 
 	// Register module routes

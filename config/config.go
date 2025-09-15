@@ -25,6 +25,9 @@ type Config struct {
 	LogOutput       string
 	JWTSecret       string
 	AppURL          string
+
+	// Scheduler configuration
+	EnableScheduler bool
 }
 
 // Load loads configuration from environment
@@ -49,6 +52,9 @@ func Load() (*Config, error) {
 		LogOutput:       getEnv("LOG_OUTPUT", "both"),
 		JWTSecret:       getEnv("JWT_SECRET", ""),
 		AppURL:          getEnv("APP_URL", "localhost:8181"),
+
+		// Scheduler configuration
+		EnableScheduler: getEnvBool("ENABLE_SCHEDULER", true),
 	}, nil
 }
 
