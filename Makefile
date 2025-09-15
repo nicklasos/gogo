@@ -10,6 +10,9 @@ build:
 build-cron:
 	go build -o bin/gogo-cron ./cmd/cron
 
+build-cli:
+	go build -o bin/gogo-cli ./cmd/cli
+
 run-cron:
 	go run ./cmd/cron
 
@@ -124,6 +127,40 @@ migrate-go-status:
 migrate-go-create:
 	@read -p "Enter migration name: " name; \
 	go run cmd/migrate/main.go create $$name
+
+# CLI-based migration commands (alternative to cmd/migrate)
+cli-migrate-up:
+	go run ./cmd/cli migrate up
+
+cli-migrate-down:
+	go run ./cmd/cli migrate down
+
+cli-migrate-status:
+	go run ./cmd/cli migrate status
+
+cli-migrate-create:
+	@read -p "Enter migration name: " name; \
+	go run ./cmd/cli migrate create $$name
+
+cli-migrate-test-up:
+	go run ./cmd/cli migrate --test up
+
+cli-migrate-test-down:
+	go run ./cmd/cli migrate --test down
+
+cli-migrate-test-status:
+	go run ./cmd/cli migrate --test status
+
+# CLI test command
+cli-test:
+	go run ./cmd/cli test
+
+cli-test-db:
+	go run ./cmd/cli --test test
+
+# CLI help
+cli-help:
+	go run ./cmd/cli help
 
 tidy:
 	go mod tidy
