@@ -7,11 +7,11 @@ import (
 	"os"
 	"sync"
 
-	"github.com/robfig/cron/v3"
 	"app/config"
 	"app/internal/db"
 	"app/internal/logger"
 	"app/internal/scheduler/jobs"
+	"github.com/robfig/cron/v3"
 )
 
 // Dependencies contains all services that might be needed by the scheduler
@@ -65,25 +65,25 @@ func (s *Scheduler) RegisterJobs() error {
 func (s *Scheduler) Start() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.cron.Start()
-	s.deps.Logger.Info(context.Background(), "Scheduler started successfully")
+	s.deps.Logger.Info("Scheduler started successfully")
 }
 
 // Stop gracefully shuts down the scheduler
 func (s *Scheduler) Stop() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.cron.Stop()
-	s.deps.Logger.Info(context.Background(), "Scheduler stopped gracefully")
+	s.deps.Logger.Info("Scheduler stopped gracefully")
 }
 
 // GetEntries returns all scheduled cron entries
 func (s *Scheduler) GetEntries() []cron.Entry {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	return s.cron.Entries()
 }
 
@@ -92,18 +92,18 @@ func (s *Scheduler) GetEntries() []cron.Entry {
 func (s *Scheduler) registerExampleJob() error {
 	// Initialize job once
 	job := jobs.NewExampleJob(s.deps.Config, s.deps.Queries, s.deps.Logger)
-	
+
 	// Run example job every 2 hours
 	_, err := s.cron.AddFunc("@every 2h", func() {
 		if err := job.Execute(context.Background()); err != nil {
-			s.deps.Logger.Error(context.Background(), "Example job failed", err)
+			s.deps.Logger.Error("Example job failed", err)
 		}
 	})
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to add example job: %w", err)
 	}
-	
-	s.deps.Logger.Info(context.Background(), "Registered example job (every 2 hours)")
+
+	s.deps.Logger.Info("Registered example job (every 2 hours)")
 	return nil
 }

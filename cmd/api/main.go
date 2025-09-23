@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 
 	"app/config"
@@ -60,7 +59,7 @@ func main() {
 		log.Fatal("Failed to initialize logger:", err)
 	}
 
-	logger.Info(context.TODO(), "Starting application",
+	logger.Info("Starting application",
 		"app_name", cfg.AppName,
 		"version", cfg.AppVersion,
 		"environment", cfg.Environment,
@@ -70,7 +69,7 @@ func main() {
 	// DB
 	database, err := db.NewConnection(cfg)
 	if err != nil {
-		logger.Error(context.TODO(), "Failed to connect to database", err)
+		logger.Error("Failed to connect to database", "error", err)
 		log.Fatal("Failed to connect to database:", err)
 	}
 	defer database.Close()
@@ -78,7 +77,7 @@ func main() {
 	// Redis
 	redisClient, err := redis.NewConnection(cfg)
 	if err != nil {
-		logger.Error(context.TODO(), "Failed to connect to Redis", err)
+		logger.Error("Failed to connect to Redis", "error", err)
 		log.Fatal("Failed to connect to Redis:", err)
 	}
 	defer redisClient.Close()
@@ -130,12 +129,12 @@ func main() {
 
 		cronScheduler := scheduler.NewScheduler(deps)
 		if err := cronScheduler.RegisterJobs(); err != nil {
-			logger.Error(context.TODO(), "Failed to register scheduler jobs", err)
+			logger.Error("Failed to register scheduler jobs", "error", err)
 			log.Fatal("Failed to register scheduler jobs:", err)
 		}
 
 		cronScheduler.Start()
-		logger.Info(context.TODO(), "Scheduler started in integrated mode")
+		logger.Info("Scheduler started in integrated mode")
 
 		// Ensure graceful shutdown of scheduler
 		defer cronScheduler.Stop()
@@ -150,9 +149,9 @@ func main() {
 
 	// Start server
 	address := ":" + cfg.Port
-	logger.Info(context.TODO(), "Server starting", "address", address)
+	logger.Info("Server starting", "address", address)
 	if err := r.Run(address); err != nil {
-		logger.Error(context.TODO(), "Server failed to start", err, "address", address)
+		logger.Error("Server failed to start", "error", err, "address", address)
 		log.Fatal(err)
 	}
 }

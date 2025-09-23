@@ -20,7 +20,6 @@ func RequestLogging(log *logger.Logger) gin.HandlerFunc {
 
 		// Log after request completes
 		latency := time.Since(start)
-		ctxLogger := log.FromContext(c.Request.Context())
 
 		status := c.Writer.Status()
 		method := c.Request.Method
@@ -32,7 +31,7 @@ func RequestLogging(log *logger.Logger) gin.HandlerFunc {
 		errors := c.Errors.ByType(gin.ErrorTypeAny)
 
 		if len(errors) > 0 {
-			ctxLogger.Error("HTTP request failed",
+			log.ErrorContext(c.Request.Context(), "HTTP request failed",
 				"status", status,
 				"method", method,
 				"path", path,
@@ -42,7 +41,7 @@ func RequestLogging(log *logger.Logger) gin.HandlerFunc {
 				"errors", errors.String(),
 			)
 		} else {
-			ctxLogger.Info("HTTP request completed",
+			log.InfoContext(c.Request.Context(), "HTTP request completed",
 				"status", status,
 				"method", method,
 				"path", path,
@@ -65,18 +64,6 @@ func RequestID(log *logger.Logger) gin.HandlerFunc {
 
 		// Add to response header
 		c.Header("X-Request-ID", requestID)
-
-		// Add request ID and HTTP context to logger
-		ctx := log.WithRequestID(c.Request.Context(), requestID)
-		ctx = log.WithHTTPContext(ctx,
-			c.Request.Method,
-			c.Request.URL.Path,
-			c.Request.UserAgent(),
-			c.ClientIP(),
-		)
-
-		// Update request context
-		c.Request = c.Request.WithContext(ctx)
 
 		c.Next()
 	}
@@ -105,7 +92,8 @@ func ErrorHandler(log *logger.Logger) gin.HandlerFunc {
 
 			// Log only 5xx errors (server errors)
 			if code >= 500 {
-				log.Error(ctx, "HTTP server error", err.Err,
+				log.ErrorContext(ctx, "HTTP server error",
+					"error", err.Err,
 					"status_code", code,
 					"error_message", message,
 					"method", c.Request.Method,
@@ -144,7 +132,8 @@ func Recovery(log *logger.Logger) gin.HandlerFunc {
 			err = fmt.Errorf("panic: %v", recovered)
 		}
 
-		log.Error(ctx, "Panic recovered", err,
+		log.ErrorContext(ctx, "Panic recovered",
+			"error", err,
 			"method", c.Request.Method,
 			"uri", c.Request.URL.Path,
 		)

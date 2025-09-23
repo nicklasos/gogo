@@ -18,12 +18,12 @@ func WrapDatabaseError(err error) error {
 	if err == nil {
 		return nil
 	}
-	
+
 	// Check for pgx no rows error
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
 	}
-	
+
 	return fmt.Errorf("database error: %w", err)
 }
 

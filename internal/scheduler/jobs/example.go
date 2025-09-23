@@ -26,23 +26,23 @@ func NewExampleJob(config *config.Config, queries *db.Queries, logger *logger.Lo
 
 // Execute runs the example job logic
 func (j *ExampleJob) Execute(ctx context.Context) error {
-	j.logger.Info(ctx, "Starting example cron job")
-	
+	j.logger.InfoContext(ctx, "Starting example cron job")
+
 	// Example: Log some system information
-	j.logger.Info(ctx, "Example job executed successfully", 
+	j.logger.InfoContext(ctx, "Example job executed successfully",
 		"app_name", j.config.AppName,
 		"environment", j.config.Environment,
 		"port", j.config.Port)
-	
+
 	// Here you could add actual job logic like:
 	// - Database cleanup
-	// - Report generation  
+	// - Report generation
 	// - Data synchronization
 	// - Email notifications
 	// - File processing
 	// - API calls to external services
-	
-	j.logger.Info(ctx, "Example cron job completed")
+
+	j.logger.InfoContext(ctx, "Example cron job completed")
 	return nil
 }
 
