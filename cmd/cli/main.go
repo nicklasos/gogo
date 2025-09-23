@@ -70,7 +70,7 @@ func initializeApp() (*internal.CLIApp, error) {
 			return nil, fmt.Errorf("TEST_DATABASE_URL environment variable is required when using --test flag")
 		}
 		cfg.DatabaseURL = testDBURL
-		log.Println("🧪 Using TEST_DATABASE_URL for database connection")
+		log.Println("Using TEST_DATABASE_URL for database connection")
 	}
 
 	// Initialize logger

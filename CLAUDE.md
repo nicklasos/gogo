@@ -1,6 +1,6 @@
 # Claude Project Memory
 
-## 🏗️ Architecture
+## Architecture
 
 ### Core Philosophy
 - **Clean separation of concerns** with clear layer responsibilities
@@ -27,7 +27,7 @@ myapp/
 - **Services**: Business logic, input validation, complex workflows, uses sqlc directly
 - **Queries**: SQL queries managed by sqlc, type-safe database operations
 
-## 🔧 Technology Stack
+## Technology Stack
 - Go 1.24+
 - Gin
 - PostgreSQL 15
@@ -39,7 +39,7 @@ myapp/
 - Swaggo - Swagger documentation
 - Testify - Testing framework for unit and integration tests
 
-## 📁 Module Pattern
+## Module Pattern
 When adding new modules (orders, products, etc.):
 
 ```go
@@ -49,7 +49,7 @@ When adding new modules (orders, products, etc.):
 └── routes.go           # Route registration
 ```
 
-## 🗄️ Database Management
+## Database Management
 
 ### Migration Creation Process
 ```bash
@@ -84,7 +84,7 @@ make sqlc
 - **Always include timestamps**: `created_at`, `updated_at` with `DEFAULT CURRENT_TIMESTAMP`
 - **Use soft deletes**: `deleted_at` 
 
-## 🚀 Development Commands
+## Development Commands
 ```bash
 # Development
 make run              # Start server
@@ -104,14 +104,14 @@ make test-db-reset    # Reset test database
 make test-with-db     # Run tests with database setup
 ```
 
-## 📋 Code Conventions
+## Code Conventions
 - **Handlers**: `GetUser`, `CreateUser`, `ListUsers`
 - **Services**: `UserService`, `OrderService`
 - **SQL queries**: `GetUserByID`, `CreateUser`, `ListUsers`
 - **Files**: `user_service.go`, `order_handler.go`
 - **Cache keys**: `user:123`, `posts:user:123`
 
-## 🎯 Key Principles
+## Key Principles
 1. **Services own business logic** - Keep handlers thin
 2. **Use sqlc directly** - No repository abstraction
 3. **Environment-driven config** - No hardcoded values
@@ -119,7 +119,7 @@ make test-with-db     # Run tests with database setup
 5. **Real database testing** - Transaction rollback for isolation
 6. **Test-driven development** - Comprehensive unit and integration tests
 
-## 🧪 Testing Framework
+## Testing Framework
 
 ### Laravel-Style Database Testing
 - **Transaction Rollback Pattern** - Each test runs in isolation with automatic rollback
@@ -202,7 +202,7 @@ make test-coverage
 make test-db-setup
 ```
 
-## 🚫 What We DON'T Use
+## What We DON'T Use
 - NO Repository Pattern - Services use sqlc directly
 - NO ORM - Raw SQL with sqlc for type safety
 - NO complex abstractions - Keep it simple

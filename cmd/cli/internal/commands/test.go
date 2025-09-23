@@ -31,10 +31,10 @@ func RunTest(app *internal.CLIApp, args []string) {
 	app.Logger.Info("Starting CLI test command")
 
 	// Test database connection
-	fmt.Println("🔗 Testing database connection...")
+	fmt.Println("Testing database connection...")
 	if err := app.Database.Ping(ctx); err != nil {
 		app.Logger.Error("Database ping failed", "error", err)
-		fmt.Printf("❌ Database connection failed: %v\n", err)
+		fmt.Printf("Database connection failed: %v\n", err)
 		return
 	}
 	fmt.Println("Database connection successful")

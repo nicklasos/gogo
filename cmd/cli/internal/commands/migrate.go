@@ -65,13 +65,13 @@ func RunMigrate(app *internal.CLIApp, args []string) {
 		if err := goose.Up(sqlDB, migrationsDir); err != nil {
 			log.Fatalf("Migration up failed: %v", err)
 		}
-		fmt.Println("✅ Migrations applied successfully")
+		fmt.Println("Migrations applied successfully")
 
 	case "down":
 		if err := goose.Down(sqlDB, migrationsDir); err != nil {
 			log.Fatalf("Migration down failed: %v", err)
 		}
-		fmt.Println("✅ Migration rolled back successfully")
+		fmt.Println("Migration rolled back successfully")
 
 	case "status":
 		if err := goose.Status(sqlDB, migrationsDir); err != nil {
@@ -95,13 +95,13 @@ func RunMigrate(app *internal.CLIApp, args []string) {
 		if err := goose.Create(sqlDB, migrationsDir, name, "sql"); err != nil {
 			log.Fatalf("Failed to create migration: %v", err)
 		}
-		fmt.Printf("✅ Created migration: %s\n", name)
+		fmt.Printf("Created migration: %s\n", name)
 
 	case "reset":
 		if err := goose.Reset(sqlDB, migrationsDir); err != nil {
 			log.Fatalf("Migration reset failed: %v", err)
 		}
-		fmt.Println("✅ All migrations rolled back successfully")
+		fmt.Println("All migrations rolled back successfully")
 
 	default:
 		fmt.Printf("Unknown migration command: %s\n", command)

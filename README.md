@@ -4,7 +4,7 @@ A production-ready Go API template built with **Gin**, **PostgreSQL**, **Redis**
 
 ![Logo](logo.jpg)
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Go 1.24+, PostgreSQL 13+, Redis 6+, Make
@@ -26,7 +26,7 @@ make sqlc # sqlc generate
 make dev
 ```
 
-## 🔧 Tech Stack
+## Tech Stack
 - **Go 1.24+** + **Gin** - API framework
 - **PostgreSQL** + **pgx/v5** - Database with connection pooling
 - **SQLC** - Type-safe SQL code generation
@@ -34,7 +34,7 @@ make dev
 - **Goose** - Database migrations
 - **Air** - Hot reload development
 
-## 🗃️ SQLC Integration
+## SQLC Integration
 
 Write SQL queries in `internal/db/queries/*.sql`, generate type-safe Go code:
 
@@ -69,7 +69,7 @@ sql:
         emit_json_tags: true
 ```
 
-## 📋 Development Commands
+## Development Commands
 
 ```bash
 # Development
@@ -86,7 +86,7 @@ make sqlc             # Generate SQLC code (run after SQL changes!)
 make swagger          # Generate API docs
 ```
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 gogo/
@@ -108,7 +108,7 @@ gogo/
 └── sqlc.yaml                    # SQLC configuration
 ```
 
-## 🔴 Caching
+## Caching
 
 Laravel-style Redis caching interface:
 
@@ -120,7 +120,7 @@ err := cache.Remember(ctx, "city:123", 5*time.Minute, func() (interface{}, error
 }, &city)
 ```
 
-## 🧪 Testing
+## Testing
 
 Laravel-style testing with real database and transaction rollback:
 
@@ -146,7 +146,7 @@ make test-db-setup    # Setup test database
 make test-with-db     # Run tests with DB
 ```
 
-## 🔧 Environment Variables
+## Environment Variables
 
 ```bash
 # .env example
@@ -158,7 +158,7 @@ APP_ENV=development
 LOG_LEVEL=info
 ```
 
-## 🎯 Adding New Modules
+## Adding New Modules
 
 1. **Create migration**: `make migrate-create name=create_users_table`
 2. **Write SQL queries** in `internal/db/queries/users.sql`
@@ -166,13 +166,13 @@ LOG_LEVEL=info
 4. **Create module**: `internal/users/{handler,service,routes}.go`
 5. **Register routes** in `cmd/api/main.go`
 
-## 🌐 API Endpoints
+## API Endpoints
 
 - `GET /api/v1/cities` - List cities
 - `GET /health` - Health check  
 - `GET /swagger/*` - API documentation
 
-## 📖 Links
+## Links
 
 - **API Docs**: `/swagger/index.html` when running
 - **SQLC Docs**: [docs.sqlc.dev](https://docs.sqlc.dev/)

@@ -58,23 +58,23 @@ go test -v ./tests/unit -run TestNewsService_GetNewsByID
 
 ## Test Features
 
-### ✅ Laravel-Style Transaction Rollback
+### Laravel-Style Transaction Rollback
 - Each test runs in its own database transaction
 - Automatic rollback after test completion
 - No data pollution between tests
 - Fast execution (transactions are faster than recreation)
 
-### ✅ Real Database Testing
+### Real Database Testing
 - Uses actual PostgreSQL database
 - Tests real SQL queries and constraints
 - No mocking of database layer
 - Type-safe with sqlc integration
 
-### ✅ Two Test Types
+### Two Test Types
 1. **Unit Tests**: Service layer business logic
 2. **Integration Tests**: Full HTTP API endpoints
 
-### ✅ Test Helpers
+### Test Helpers
 - `WithTransaction`: Database transaction wrapper
 - `WithTestServer`: HTTP test server setup
 - `CreateTestNews`, `CreateTestCity`: Test data fixtures
