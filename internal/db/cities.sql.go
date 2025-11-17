@@ -7,12 +7,10 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getCityByID = `-- name: GetCityByID :one
-SELECT id, name, created_at, updated_at, lat, lon, available_modules FROM cities 
+SELECT id, name, created_at, updated_at FROM cities 
 WHERE id = $1 LIMIT 1
 `
 
@@ -24,15 +22,12 @@ func (q *Queries) GetCityByID(ctx context.Context, id int32) (City, error) {
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Lat,
-		&i.Lon,
-		&i.AvailableModules,
 	)
 	return i, err
 }
 
 const getCityByName = `-- name: GetCityByName :one
-SELECT id, name, created_at, updated_at, lat, lon, available_modules FROM cities 
+SELECT id, name, created_at, updated_at FROM cities 
 WHERE name = $1 LIMIT 1
 `
 
@@ -44,15 +39,12 @@ func (q *Queries) GetCityByName(ctx context.Context, name string) (City, error) 
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Lat,
-		&i.Lon,
-		&i.AvailableModules,
 	)
 	return i, err
 }
 
 const listCities = `-- name: ListCities :many
-SELECT id, name, created_at, updated_at, lat, lon, available_modules FROM cities 
+SELECT id, name, created_at, updated_at FROM cities 
 ORDER BY name ASC
 `
 
@@ -70,9 +62,6 @@ func (q *Queries) ListCities(ctx context.Context) ([]City, error) {
 			&i.Name,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.Lat,
-			&i.Lon,
-			&i.AvailableModules,
 		); err != nil {
 			return nil, err
 		}
@@ -82,21 +71,4 @@ func (q *Queries) ListCities(ctx context.Context) ([]City, error) {
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateCityLatLon = `-- name: UpdateCityLatLon :exec
-UPDATE cities 
-SET lat = $2, lon = $3, updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
-`
-
-type UpdateCityLatLonParams struct {
-	ID  int32          `db:"id" json:"id"`
-	Lat pgtype.Numeric `db:"lat" json:"lat"`
-	Lon pgtype.Numeric `db:"lon" json:"lon"`
-}
-
-func (q *Queries) UpdateCityLatLon(ctx context.Context, arg UpdateCityLatLonParams) error {
-	_, err := q.db.Exec(ctx, updateCityLatLon, arg.ID, arg.Lat, arg.Lon)
-	return err
 }

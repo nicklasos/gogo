@@ -9,11 +9,8 @@ import (
 )
 
 type City struct {
-	ID               int32            `db:"id" json:"id"`
-	Name             string           `db:"name" json:"name"`
-	CreatedAt        pgtype.Timestamp `db:"created_at" json:"created_at"`
-	UpdatedAt        pgtype.Timestamp `db:"updated_at" json:"updated_at"`
-	Lat              pgtype.Numeric   `db:"lat" json:"lat"`
-	Lon              pgtype.Numeric   `db:"lon" json:"lon"`
-	AvailableModules []string         `db:"available_modules" json:"available_modules"`
+	ID        int32            `db:"id" json:"id"`
+	Name      string           `db:"name" json:"name"`
+	CreatedAt pgtype.Timestamp `db:"created_at" json:"created_at"`
+	UpdatedAt pgtype.Timestamp `db:"updated_at" json:"updated_at"`
 }

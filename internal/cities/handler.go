@@ -1,7 +1,6 @@
 package cities
 
 import (
-	"app/internal"
 	"app/internal/db"
 	apperrors "app/internal/errors"
 	"net/http"
@@ -26,9 +25,9 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-func NewHandler(app *internal.App) *Handler {
+func NewHandler(service *CitiesService) *Handler {
 	return &Handler{
-		service: NewCitiesService(app.Queries),
+		service: service,
 	}
 }
 

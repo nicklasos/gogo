@@ -23,7 +23,8 @@ myapp/
 ```
 
 ### Layer Responsibilities
-- **Handlers**: HTTP request/response, basic validation, JSON serialization
+- **Routes**: Dependency injection, receives `*internal.App` and creates services/handlers with specific dependencies
+- **Handlers**: HTTP request/response, basic validation, JSON serialization, receives only needed services
 - **Services**: Business logic, input validation, complex workflows, uses sqlc directly
 - **Queries**: SQL queries managed by sqlc, type-safe database operations
 
@@ -44,9 +45,33 @@ When adding new modules (orders, products, etc.):
 
 ```go
 // internal/orders/
-├── handler.go           # HTTP endpoints
+├── handler.go           # HTTP endpoints - receives only needed services
 ├── order_service.go     # Business logic
-└── routes.go           # Route registration
+└── routes.go           # Route registration - receives *internal.App, handles DI
+```
+
+### Dependency Injection Pattern
+- **Routes** (`routes.go`): Only layer that knows about `*internal.App`
+- **Handlers**: Receive specific services they need (e.g., `*OrderService`)
+- **Services**: Receive specific dependencies (e.g., `*db.Queries`, logger, cache)
+
+```go
+// Example: internal/orders/routes.go
+func RegisterRoutes(app *internal.App) {
+    // Create service with only needed dependencies
+    service := NewOrderService(app.Queries, app.Logger)
+    
+    // Create handler with only needed services
+    handler := NewHandler(service)
+    
+    app.Api.POST("/orders", handler.CreateOrder)
+    app.Api.GET("/orders", handler.ListOrders)
+}
+
+// Example: internal/orders/handler.go
+func NewHandler(service *OrderService) *Handler {
+    return &Handler{service: service}
+}
 ```
 
 ## Database Management
@@ -112,12 +137,14 @@ make test-with-db     # Run tests with database setup
 - **Cache keys**: `user:123`, `posts:user:123`
 
 ## Key Principles
-1. **Services own business logic** - Keep handlers thin
-2. **Use sqlc directly** - No repository abstraction
-3. **Environment-driven config** - No hardcoded values
-4. **Module-based organization** - Self-contained domains
-5. **Real database testing** - Transaction rollback for isolation
-6. **Test-driven development** - Comprehensive unit and integration tests
+1. **Dependency Injection via Routes** - Only `routes.go` knows about `*internal.App`
+2. **Handlers receive specific services** - No direct access to `*internal.App`
+3. **Services own business logic** - Keep handlers thin
+4. **Use sqlc directly** - No repository abstraction
+5. **Environment-driven config** - No hardcoded values
+6. **Module-based organization** - Self-contained domains
+7. **Real database testing** - Transaction rollback for isolation
+8. **Test-driven development** - Comprehensive unit and integration tests
 
 ## Testing Framework
 
