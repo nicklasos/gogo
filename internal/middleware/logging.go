@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"app/internal/errs"
 	"app/internal/logger"
 
 	"github.com/gin-gonic/gin"
@@ -79,41 +80,21 @@ func ErrorHandler(log *logger.Logger) gin.HandlerFunc {
 			err := c.Errors.Last()
 			ctx := c.Request.Context()
 
-			// Default to 500 if not set
-			code := c.Writer.Status()
-			if code == 200 {
-				code = 500
-			}
-
-			message := "Internal Server Error"
-			if err.Error() != "" {
-				message = err.Error()
-			}
-
 			// Log only 5xx errors (server errors)
-			if code >= 500 {
+			if c.Writer.Status() >= 500 {
 				log.ErrorContext(ctx, "HTTP server error",
 					"error", err.Err,
-					"status_code", code,
-					"error_message", message,
+					"status_code", c.Writer.Status(),
+					"error_message", err.Error(),
 					"method", c.Request.Method,
 					"uri", c.Request.URL.Path,
 				)
 			}
 
-			// Don't send error details in production
-			if code >= 500 {
-				message = "Internal Server Error"
-			}
-
 			// Send JSON error response if not already sent
 			if !c.Writer.Written() {
-				c.JSON(code, gin.H{
-					"error":      message,
-					"status":     code,
-					"request_id": c.GetHeader("X-Request-ID"),
-					"timestamp":  time.Now().UTC().Format(time.RFC3339),
-				})
+				// Use the new error response system
+				errs.RespondWithError(c, err.Err)
 			}
 		}
 	}
@@ -139,11 +120,6 @@ func Recovery(log *logger.Logger) gin.HandlerFunc {
 		)
 
 		// Send error response
-		c.JSON(500, gin.H{
-			"error":      "Internal Server Error",
-			"status":     500,
-			"request_id": c.GetHeader("X-Request-ID"),
-			"timestamp":  time.Now().UTC().Format(time.RFC3339),
-		})
+		errs.RespondWithInternalError(c, "Internal Server Error")
 	})
 }

@@ -11,8 +11,9 @@ import (
 	"testing"
 
 	"app/internal"
-	"app/internal/cities"
+	"app/internal/auth"
 	"app/internal/db"
+	"app/internal/example"
 	"app/internal/logger"
 
 	"github.com/gin-gonic/gin"
@@ -57,13 +58,14 @@ func CreateTestServer(t *testing.T, ctx context.Context, tx pgx.Tx, queries *db.
 		Api:     router.Group("/api/v1"),
 	}
 
-	// // Register all routes
-	// jwtSecret := []byte("test-secret-key")
-	// authService := auth.NewAuthService(queries, jwtSecret)
-	// authHandler := auth.NewAuthHandler(authService, testLogger)
-	// auth.RegisterRoutes(app.Api, authHandler, authService)
+	// Register auth routes
+	jwtSecret := []byte("test-secret-key")
+	authService := auth.NewAuthService(queries, jwtSecret, testLogger)
+	authHandler := auth.NewAuthHandler(authService, testLogger)
+	auth.RegisterRoutes(app.Api, authHandler, authService)
 
-	cities.RegisterRoutes(app)
+	// Register example routes
+	example.RegisterRoutes(app, authService)
 
 	// Create test server
 	server := httptest.NewServer(router)
@@ -196,4 +198,9 @@ func (ts *TestServer) Do(req *http.Request) *TestResponse {
 		Body:       respBody,
 		Header:     resp.Header,
 	}
+}
+
+// StringToReadCloser converts a string to io.ReadCloser
+func StringToReadCloser(s string) io.ReadCloser {
+	return io.NopCloser(strings.NewReader(s))
 }

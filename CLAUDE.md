@@ -10,14 +10,26 @@
 
 ### Directory Structure
 ```
-myapp/
+gogo/
 ├── cmd/api/main.go              # Main application entry
 ├── internal/
-│   ├── db/db.go                 # Database connection
-│   └── users/                   # Domain modules
-│       ├── handler.go           # HTTP controllers
-│       ├── user_service.go      # Business logic
-│       └── routes.go            # Route registration
+│   ├── app.go                   # App context with DB, Cache, Logger
+│   ├── auth/                    # Authentication module
+│   │   ├── auth_service.go      # Business logic
+│   │   ├── handlers.go          # HTTP handlers
+│   │   ├── routes.go            # Route registration
+│   │   └── types.go             # Request/response types
+│   ├── example/                 # Example CRUD module
+│   │   ├── example_service.go   # Business logic
+│   │   ├── handler.go           # HTTP handlers
+│   │   ├── routes.go            # Route registration
+│   │   └── types.go             # Request/response types
+│   ├── db/
+│   │   └── queries/              # SQL queries
+│   ├── middleware/
+│   │   ├── user_auth.go         # JWT authentication
+│   │   └── pagination.go        # Pagination context
+│   └── responses.go             # PaginationMeta helper
 ├── migrations/                  # Goose database migrations
 └── Makefile                     # Development commands
 ```
@@ -38,16 +50,18 @@ myapp/
 - sqlc - Type-safe SQL code generation
 - Goose - Database migrations
 - Swaggo - Swagger documentation
-- Testify - Testing framework for unit and integration tests
+- JWT - Authentication
+- Testify - Testing framework
 
 ## Module Pattern
-When adding new modules (orders, products, etc.):
+When adding new modules:
 
 ```go
 // internal/orders/
 ├── handler.go           # HTTP endpoints - receives only needed services
 ├── order_service.go     # Business logic
-└── routes.go           # Route registration - receives *internal.App, handles DI
+├── routes.go           # Route registration - receives *internal.App, handles DI
+└── types.go            # All request/response types
 ```
 
 ### Dependency Injection Pattern
@@ -55,22 +69,70 @@ When adding new modules (orders, products, etc.):
 - **Handlers**: Receive specific services they need (e.g., `*OrderService`)
 - **Services**: Receive specific dependencies (e.g., `*db.Queries`, logger, cache)
 
+## Context Patterns
+
+### User ID from Context
+Use `middleware.GetUserIDFromContext(c)` in handlers to get authenticated user ID:
+
 ```go
-// Example: internal/orders/routes.go
-func RegisterRoutes(app *internal.App) {
-    // Create service with only needed dependencies
-    service := NewOrderService(app.Queries, app.Logger)
-    
-    // Create handler with only needed services
-    handler := NewHandler(service)
-    
-    app.Api.POST("/orders", handler.CreateOrder)
-    app.Api.GET("/orders", handler.ListOrders)
+func (h *Handler) CreateOrder(c *gin.Context) {
+    userID, err := middleware.GetUserIDFromContext(c)
+    if err != nil {
+        errs.RespondWithUnauthorized(c, "Unauthorized")
+        return
+    }
+    // Use userID...
+}
+```
+
+### Pagination from Context
+Use `middleware.GetPaginationParamsFromContext(c, default, min, max)` in handlers:
+
+```go
+func (h *Handler) ListOrders(c *gin.Context) {
+    pagination, err := middleware.GetPaginationParamsFromContext(c, 20, 1, 100)
+    if err != nil {
+        errs.RespondWithBadRequest(c, errs.ErrKeyBadRequest, err.Error())
+        return
+    }
+    // Use pagination.Page and pagination.PageSize...
+}
+```
+
+## Types.go Pattern
+
+### Rule
+- **All request/response types** go in `types.go` within each module
+- **Service types** (e.g., `PaginatedExamplesResult`) are defined in service files
+- **Handlers** use types from `types.go` for requests/responses
+- **Services** use internal types and convert to handler types
+- Clear separation: handlers know about types.go, services don't
+
+### Example
+```go
+// types.go
+type CreateRequest struct {
+    Title string `json:"title" binding:"required"`
 }
 
-// Example: internal/orders/handler.go
-func NewHandler(service *OrderService) *Handler {
-    return &Handler{service: service}
+type ExampleResponse struct {
+    ID    int32  `json:"id"`
+    Title string `json:"title"`
+}
+
+// example_service.go
+type PaginatedExamplesResult struct {
+    Data     []db.Example
+    Total    int64
+    Page     int32
+    PageSize int32
+}
+
+// handler.go
+func (h *Handler) Create(c *gin.Context) {
+    var req CreateRequest  // From types.go
+    // ...
+    response := ExampleResponse{...}  // From types.go
 }
 ```
 
@@ -80,20 +142,6 @@ func NewHandler(service *OrderService) *Handler {
 ```bash
 # Create migrations manually with sequential numbering
 # Format: migrations/001_description.sql, 002_description.sql, etc.
-# 
-# Migration template:
-# -- +goose Up
-# -- +goose StatementBegin
-# CREATE TABLE example (
-#     id SERIAL PRIMARY KEY,
-#     name VARCHAR(255) NOT NULL
-# );
-# -- +goose StatementEnd
-# 
-# -- +goose Down
-# -- +goose StatementBegin
-# DROP TABLE IF EXISTS example;
-# -- +goose StatementEnd
 
 # Apply migrations
 export DATABASE_URL="your_connection_string"
@@ -107,7 +155,6 @@ make sqlc
 - **Format**: `001_description.sql`, `002_description.sql`, etc.
 - **Location**: `migrations/` directory
 - **Always include timestamps**: `created_at`, `updated_at` with `DEFAULT CURRENT_TIMESTAMP`
-- **Use soft deletes**: `deleted_at` 
 
 ## Development Commands
 ```bash
@@ -115,18 +162,11 @@ make sqlc
 make run              # Start server
 make build            # Build binary
 make test             # Run all tests
-make test-unit        # Run unit tests only
-make test-integration # Run integration tests only
 
 # Database
 make migrate-up       # Apply migrations
 make sqlc            # Generate sqlc code
 make swagger         # Generate API docs
-
-# Test Database
-make test-db-setup    # Set up test database
-make test-db-reset    # Reset test database
-make test-with-db     # Run tests with database setup
 ```
 
 ## Code Conventions
@@ -143,8 +183,8 @@ make test-with-db     # Run tests with database setup
 4. **Use sqlc directly** - No repository abstraction
 5. **Environment-driven config** - No hardcoded values
 6. **Module-based organization** - Self-contained domains
-7. **Real database testing** - Transaction rollback for isolation
-8. **Test-driven development** - Comprehensive unit and integration tests
+7. **Context patterns** - Use middleware for user ID and pagination
+8. **Types.go pattern** - All request/response types in types.go
 
 ## Testing Framework
 
@@ -153,30 +193,16 @@ make test-with-db     # Run tests with database setup
 - **Real Database Testing** - Uses actual PostgreSQL (no mocking)
 - **Test Database Separation** - Uses `TEST_DATABASE_URL` environment variable
 
-### Test Structure
-```
-tests/
-├── helpers/
-│   ├── db_helper.go      # Transaction rollback helper
-│   └── fixtures.go       # Test data creation
-├── unit/
-│   ├── news_service_test.go
-│   └── feed_service_test.go
-└── integration/
-    └── news_api_test.go
-```
-
 ### Test Patterns
 ```go
-// Transaction rollback pattern
 func TestServiceMethod(t *testing.T) {
     helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
         // Setup test data
-        city := helpers.CreateTestCity(t, ctx, tx)
+        example := helpers.CreateTestExample(t, ctx, tx)
         
         // Test service method
         service := NewService(queries)
-        result, err := service.Method(ctx, city.ID)
+        result, err := service.Method(ctx, example.ID)
         
         // Assertions
         require.NoError(t, err)
@@ -185,51 +211,7 @@ func TestServiceMethod(t *testing.T) {
 }
 ```
 
-### Test Configuration
-- **Environment Required**: `TEST_DATABASE_URL` must be set
-- **Panic on Missing Config**: Tests panic if TEST_DATABASE_URL is not found
-- **Automatic Cleanup**: Each test runs in transaction that gets rolled back
-- **Isolation**: Tests don't affect each other or production data
-
-### VSCode Test Integration
-To run tests from VSCode (clicking test icons), ensure `.vscode/settings.json` includes:
-```json
-{
-    "go.testEnvFile": "${workspaceFolder}/.env",
-    "go.testFlags": ["-v"]
-}
-```
-
-This ensures VSCode loads environment variables when running tests directly.
-
-### Test Coverage Examples
-- **Unit Tests**: Business logic, validation, data processing
-- **Integration Tests**: HTTP endpoints, request/response handling
-- **Edge Cases**: Error conditions, boundary values, constraint violations
-- **Multi-tenant**: City isolation, data separation
-
-### Running Tests
-```bash
-# All tests (requires TEST_DATABASE_URL in .env)
-make test
-
-# Unit tests only
-make test-unit
-
-# Integration tests only  
-make test-integration
-
-# With verbose output
-make test-verbose
-
-# With coverage
-make test-coverage
-
-# Set up test database first
-make test-db-setup
-```
-
-## What We DON'T Use
+## What We DON't Use
 - NO Repository Pattern - Services use sqlc directly
 - NO ORM - Raw SQL with sqlc for type safety
 - NO complex abstractions - Keep it simple

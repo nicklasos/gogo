@@ -6,9 +6,10 @@ import (
 	"app/config"
 	"app/docs"
 	"app/internal"
+	"app/internal/auth"
 	"app/internal/cache"
-	"app/internal/cities"
 	"app/internal/db"
+	"app/internal/example"
 	"app/internal/logger"
 	custommiddleware "app/internal/middleware"
 	"app/internal/redis"
@@ -20,9 +21,9 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-// @title           MyApp API
+// @title           Gogo API Template
 // @version         1.0
-// @description     Api for SmartCity project
+// @description     A production-ready Go API template with authentication and CRUD examples
 // @termsOfService  http://swagger.io/terms/
 
 // @contact.name   API Support
@@ -140,8 +141,19 @@ func main() {
 		defer cronScheduler.Stop()
 	}
 
-	// Register module routes
-	cities.RegisterRoutes(app)
+	// Initialize auth service
+	if cfg.JWTSecret == "" {
+		logger.Error("JWT_SECRET is required")
+		log.Fatal("JWT_SECRET environment variable is required")
+	}
+	authService := auth.NewAuthService(app.Queries, []byte(cfg.JWTSecret), logger)
+	authHandler := auth.NewAuthHandler(authService, logger)
+
+	// Register auth routes
+	auth.RegisterRoutes(api, authHandler, authService)
+
+	// Register example routes
+	example.RegisterRoutes(app, authService)
 
 	// Swagger route - set host dynamically
 	docs.SwaggerInfo.Host = cfg.AppURL

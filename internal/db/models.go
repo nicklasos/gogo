@@ -8,9 +8,30 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type City struct {
+type Example struct {
+	ID          int32            `db:"id" json:"id"`
+	UserID      int32            `db:"user_id" json:"user_id"`
+	Title       string           `db:"title" json:"title"`
+	Description pgtype.Text      `db:"description" json:"description"`
+	CreatedAt   pgtype.Timestamp `db:"created_at" json:"created_at"`
+	UpdatedAt   pgtype.Timestamp `db:"updated_at" json:"updated_at"`
+}
+
+type RefreshToken struct {
 	ID        int32            `db:"id" json:"id"`
+	UserID    int32            `db:"user_id" json:"user_id"`
+	Token     string           `db:"token" json:"token"`
+	ExpiresAt pgtype.Timestamp `db:"expires_at" json:"expires_at"`
+	CreatedAt pgtype.Timestamp `db:"created_at" json:"created_at"`
+	IsRevoked pgtype.Bool      `db:"is_revoked" json:"is_revoked"`
+}
+
+type User struct {
+	ID        int32            `db:"id" json:"id"`
+	Email     string           `db:"email" json:"email"`
 	Name      string           `db:"name" json:"name"`
+	Password  string           `db:"password" json:"password"`
+	Roles     []string         `db:"roles" json:"roles"`
 	CreatedAt pgtype.Timestamp `db:"created_at" json:"created_at"`
 	UpdatedAt pgtype.Timestamp `db:"updated_at" json:"updated_at"`
 }

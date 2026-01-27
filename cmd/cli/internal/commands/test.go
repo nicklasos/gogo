@@ -2,7 +2,7 @@ package commands
 
 import (
 	"app/cmd/cli/internal"
-	"app/internal/cities"
+	"app/internal/example"
 	"context"
 	"flag"
 	"fmt"
@@ -39,23 +39,15 @@ func RunTest(app *internal.CLIApp, args []string) {
 	}
 	fmt.Println("Database connection successful")
 
-	// Test cities service if it exists
-	fmt.Println("Testing cities service...")
-	citiesService := cities.NewCitiesService(app.Queries)
-
-	cityList, err := citiesService.ListCities(ctx)
-	if err != nil {
-		app.Logger.Error("Failed to list cities", "error", err)
-		fmt.Printf("Cities service test failed: %v\n", err)
-		return
-	}
-
-	fmt.Printf("Cities service working - found %d cities\n", len(cityList))
+	// Test example service initialization
+	fmt.Println("Testing example service...")
+	_ = example.NewExampleService(app.Queries)
+	fmt.Println("Example service initialized successfully")
 
 	// Test basic query
 	fmt.Println("Testing basic database query...")
 	var dbVersion string
-	err = app.Database.QueryRow(ctx, "SELECT version()").Scan(&dbVersion)
+	err := app.Database.QueryRow(ctx, "SELECT version()").Scan(&dbVersion)
 	if err != nil {
 		app.Logger.Error("Failed to get database version", "error", err)
 		fmt.Printf("Database query failed: %v\n", err)
