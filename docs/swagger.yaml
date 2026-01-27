@@ -1,70 +1,173 @@
 basePath: /
 definitions:
-  big.Int:
-    type: object
-  internal_cities.CitiesResponse:
+  internal.PaginationMeta:
     properties:
-      data:
-        items:
-          $ref: '#/definitions/internal_cities.City'
-        type: array
-    type: object
-  internal_cities.City:
-    properties:
-      available_modules:
-        items:
-          type: string
-        type: array
-      created_at:
-        $ref: '#/definitions/pgtype.Timestamp'
-      id:
+      current_page:
         type: integer
-      lat:
-        $ref: '#/definitions/pgtype.Numeric'
-      lon:
-        $ref: '#/definitions/pgtype.Numeric'
-      name:
-        type: string
-      updated_at:
-        $ref: '#/definitions/pgtype.Timestamp'
+      last_page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
     type: object
-  internal_cities.ErrorResponse:
+  internal_auth.ErrorResponse:
     properties:
       error:
         type: string
     type: object
-  pgtype.InfinityModifier:
-    enum:
-    - 1
-    - 0
-    - -1
-    type: integer
-    x-enum-varnames:
-    - Infinity
-    - Finite
-    - NegativeInfinity
-  pgtype.Numeric:
+  internal_auth.LoginDataResponse:
     properties:
-      exp:
-        type: integer
-      infinityModifier:
-        $ref: '#/definitions/pgtype.InfinityModifier'
-      int:
-        $ref: '#/definitions/big.Int'
-      naN:
-        type: boolean
-      valid:
-        type: boolean
+      data:
+        $ref: '#/definitions/internal_auth.LoginResponse'
     type: object
-  pgtype.Timestamp:
+  internal_auth.LoginRequest:
     properties:
-      infinityModifier:
-        $ref: '#/definitions/pgtype.InfinityModifier'
-      time:
-        description: Time zone will be ignored when encoding to PostgreSQL.
+      email:
         type: string
-      valid:
-        type: boolean
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  internal_auth.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      user:
+        $ref: '#/definitions/internal_auth.UserResponse'
+    type: object
+  internal_auth.MessageResponse:
+    properties:
+      data:
+        properties:
+          message:
+            type: string
+        type: object
+    type: object
+  internal_auth.RefreshTokenDataResponse:
+    properties:
+      data:
+        $ref: '#/definitions/internal_auth.RefreshTokenResponse'
+    type: object
+  internal_auth.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  internal_auth.RefreshTokenResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  internal_auth.RegisterDataResponse:
+    properties:
+      data:
+        $ref: '#/definitions/internal_auth.RegisterResponse'
+    type: object
+  internal_auth.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  internal_auth.RegisterResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      user:
+        $ref: '#/definitions/internal_auth.UserResponse'
+    type: object
+  internal_auth.UserDataResponse:
+    properties:
+      data:
+        $ref: '#/definitions/internal_auth.UserResponse'
+    type: object
+  internal_auth.UserResponse:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  internal_example.CreateExampleRequest:
+    properties:
+      description:
+        type: string
+      title:
+        type: string
+    required:
+    - title
+    type: object
+  internal_example.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  internal_example.ExampleDataResponse:
+    properties:
+      data:
+        $ref: '#/definitions/internal_example.ExampleResponse'
+    type: object
+  internal_example.ExampleResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      title:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  internal_example.MessageResponse:
+    properties:
+      data:
+        properties:
+          message:
+            type: string
+        type: object
+    type: object
+  internal_example.PaginatedExamplesResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/internal_example.ExampleResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/internal.PaginationMeta'
+    type: object
+  internal_example.UpdateExampleRequest:
+    properties:
+      description:
+        type: string
+      title:
+        type: string
+    required:
+    - title
     type: object
 host: localhost:8181
 info:
@@ -72,33 +175,354 @@ info:
     email: support@swagger.io
     name: API Support
     url: http://www.swagger.io/support
-  description: Api for SmartCity project
+  description: A production-ready Go API template with authentication and CRUD examples
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   termsOfService: http://swagger.io/terms/
-  title: MyApp API
+  title: Gogo API Template
   version: "1.0"
 paths:
-  /api/v1/cities:
-    get:
+  /api/v1/auth/login:
+    post:
       consumes:
       - application/json
-      description: Get a list of all cities
+      description: Authenticate user with email and password
+      parameters:
+      - description: Login request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.LoginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_cities.CitiesResponse'
+            $ref: '#/definitions/internal_auth.LoginDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_cities.ErrorResponse'
-      summary: List all cities
+            $ref: '#/definitions/internal_auth.ErrorResponse'
+      summary: Login user
       tags:
-      - cities
+      - auth
+  /api/v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logout the currently authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_auth.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Logout user
+      tags:
+      - auth
+  /api/v1/auth/me:
+    get:
+      consumes:
+      - application/json
+      description: Get information about the currently authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.UserDataResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_auth.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Get current user info
+      tags:
+      - auth
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Refresh the access token using a valid refresh token
+      parameters:
+      - description: Refresh token request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.RefreshTokenDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_auth.ErrorResponse'
+      summary: Refresh access token
+      tags:
+      - auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with email and password
+      parameters:
+      - description: Registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.RegisterDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_auth.ErrorResponse'
+      summary: Register new user
+      tags:
+      - auth
+  /api/v1/examples:
+    get:
+      consumes:
+      - application/json
+      description: Get all examples for the authenticated user with pagination
+      parameters:
+      - default: 1
+        description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 'Page size (default: 20, min: 1, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_example.PaginatedExamplesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: List examples (paginated)
+      tags:
+      - examples
+    post:
+      consumes:
+      - application/json
+      description: Create a new example for the authenticated user
+      parameters:
+      - description: Example details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_example.CreateExampleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_example.ExampleDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Create example
+      tags:
+      - examples
+  /api/v1/examples/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an example for the authenticated user
+      parameters:
+      - description: Example ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_example.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Delete example
+      tags:
+      - examples
+    get:
+      consumes:
+      - application/json
+      description: Get an example by ID for the authenticated user
+      parameters:
+      - description: Example ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_example.ExampleDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Get example
+      tags:
+      - examples
+    put:
+      consumes:
+      - application/json
+      description: Update an existing example for the authenticated user
+      parameters:
+      - description: Example ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Example details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_example.UpdateExampleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_example.ExampleDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_example.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Update example
+      tags:
+      - examples
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.
