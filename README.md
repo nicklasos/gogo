@@ -110,8 +110,6 @@ make swagger          # Generate API docs
   - Supported types: images (jpg, jpeg, png, gif, webp), videos (mp4, avi, mov), documents (pdf, doc, docx, txt), audio (mp3, wav, ogg)
   - Max file size: 50MB (configurable)
 
-**Note**: The uploads module provides service methods (`GetUpload`, `ListUploads`, `DeleteUpload`) for internal use by other services. These are not exposed as HTTP endpoints but can be used programmatically.
-
 ### Other
 - `GET /health` - Health check
 - `GET /swagger/*` - API documentation
