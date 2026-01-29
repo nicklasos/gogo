@@ -86,8 +86,8 @@ func CreateTestExample(t *testing.T, ctx context.Context, tx pgx.Tx, userID int3
 
 	example := &db.Example{
 		UserID:      userID,
-		Title:        title,
-		Description:  pgtype.Text{String: "Test description", Valid: true},
+		Title:       title,
+		Description: pgtype.Text{String: "Test description", Valid: true},
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -109,8 +109,8 @@ func CreateTestExampleWithTitle(t *testing.T, ctx context.Context, tx pgx.Tx, us
 
 	example := &db.Example{
 		UserID:      userID,
-		Title:        title,
-		Description:  pgtype.Text{String: "Test description", Valid: true},
+		Title:       title,
+		Description: pgtype.Text{String: "Test description", Valid: true},
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -135,6 +135,33 @@ func GetUserByEmail(t *testing.T, ctx context.Context, tx pgx.Tx, email string) 
 	err := row.Scan(&user.ID, &user.Email, &user.Name, &user.Password, &user.Roles, &user.CreatedAt, &user.UpdatedAt)
 	require.NoError(t, err, "Failed to get user by email")
 	return &user
+}
+
+// CreateTestUpload creates a test upload and returns it
+func CreateTestUpload(t *testing.T, ctx context.Context, tx pgx.Tx, userID int32) *db.Upload {
+	now := pgtype.Timestamp{Time: time.Now(), Valid: true}
+
+	upload := &db.Upload{
+		UserID:           userID,
+		FolderID:         userID,
+		Type:             "image",
+		RelativePath:     fmt.Sprintf("%d/test_%d.jpg", userID, time.Now().UnixNano()),
+		OriginalFilename: "test.jpg",
+		FileSize:         1024,
+		MimeType:         pgtype.Text{String: "image/jpeg", Valid: true},
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+
+	// Insert test upload
+	row := tx.QueryRow(ctx,
+		"INSERT INTO uploads (user_id, folder_id, type, relative_path, original_filename, file_size, mime_type, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, user_id, folder_id, type, relative_path, original_filename, file_size, mime_type, created_at, updated_at",
+		upload.UserID, upload.FolderID, upload.Type, upload.RelativePath, upload.OriginalFilename, upload.FileSize, upload.MimeType, upload.CreatedAt, upload.UpdatedAt)
+
+	err := row.Scan(&upload.ID, &upload.UserID, &upload.FolderID, &upload.Type, &upload.RelativePath, &upload.OriginalFilename, &upload.FileSize, &upload.MimeType, &upload.CreatedAt, &upload.UpdatedAt)
+	require.NoError(t, err, "Failed to create test upload")
+
+	return upload
 }
 
 // GetTestLogger creates a test logger

@@ -103,6 +103,15 @@ make swagger          # Generate API docs
 - `PUT /api/v1/examples/:id` - Update example (protected)
 - `DELETE /api/v1/examples/:id` - Delete example (protected)
 
+### Uploads
+- `POST /api/v1/uploads` - Upload a file (protected)
+  - Accepts: `multipart/form-data` with `file` field
+  - Returns: Upload ID, relative path, full URL, type, and metadata
+  - Supported types: images (jpg, jpeg, png, gif, webp), videos (mp4, avi, mov), documents (pdf, doc, docx, txt), audio (mp3, wav, ogg)
+  - Max file size: 50MB (configurable)
+
+**Note**: The uploads module provides service methods (`GetUpload`, `ListUploads`, `DeleteUpload`) for internal use by other services. These are not exposed as HTTP endpoints but can be used programmatically.
+
 ### Other
 - `GET /health` - Health check
 - `GET /swagger/*` - API documentation
@@ -129,6 +138,83 @@ LOG_LEVEL=info
 - All request/response types go in `types.go` within each module
 - Services define internal types (e.g., `PaginatedExamplesResult`) in service files
 - Handlers convert service types to response types from `types.go`
+
+## Uploads Module
+
+The uploads module allows users to upload files (images, videos, documents, audio) and stores metadata in the database.
+
+### Usage
+
+#### Uploading Files
+
+```go
+// In your handler or service
+import "app/internal/uploads"
+
+// Get upload service from app context
+config := uploads.DefaultUploadConfig(app.Config.UploadFolder, app.Config.FilesBaseURL)
+service := uploads.NewUploadService(app.Queries, config)
+
+// Upload file
+upload, err := service.UploadFile(ctx, fileHeader, userID)
+if err != nil {
+    // Handle error
+}
+// upload.ID, upload.RelativePath, upload.Type, etc.
+```
+
+#### Retrieving Uploads
+
+```go
+// Get a single upload
+upload, err := service.GetUpload(ctx, uploadID, userID)
+if err != nil {
+    // Handle error (returns ErrUploadNotFound if not found)
+}
+
+// List all uploads for a user
+uploads, err := service.ListUploads(ctx, userID)
+if err != nil {
+    // Handle error
+}
+```
+
+#### Deleting Uploads
+
+```go
+// Delete an upload (removes from DB and disk)
+err := service.DeleteUpload(ctx, uploadID, userID)
+if err != nil {
+    // Handle error (returns ErrUploadNotFound if not found)
+}
+```
+
+#### Configuration
+
+The upload service is configurable:
+
+```go
+config := &uploads.UploadConfig{
+    UploadFolder: "./uploads",
+    BaseURL:      "http://localhost:8181/api/files",
+    MaxFileSize:  50 * 1024 * 1024, // 50MB
+    AllowedTypes: []string{".jpg", ".png", ".pdf"}, // Custom allowed types
+    GetFolderID: func(ctx context.Context, userID int32) (int32, error) {
+        // Custom logic to determine folder ID
+        // Default: returns userID
+        return userID, nil
+    },
+}
+```
+
+### File Types
+
+The service automatically detects file types:
+- **image**: jpg, jpeg, png, gif, webp
+- **video**: mp4, avi, mov, wmv, flv
+- **audio**: mp3, wav, ogg, aac, flac
+- **document**: pdf, doc, docx, txt, xls, xlsx
+- **other**: any other extension
 
 ## Adding New Modules
 

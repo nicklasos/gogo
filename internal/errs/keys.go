@@ -25,6 +25,12 @@ const (
 	ErrKeyExampleInvalidID = "examples.invalid_id"
 )
 
+// Upload error keys
+const (
+	ErrKeyUploadNotFound  = "uploads.not_found"
+	ErrKeyValidationError = "validation.error"
+)
+
 // Validation error keys
 const (
 	ErrKeyValidationFailed       = "validation.failed"
@@ -38,7 +44,7 @@ const (
 	ErrKeyValidationAlphanum     = "validation.alphanum"
 	ErrKeyValidationURL          = "validation.url"
 	ErrKeyValidationUUID         = "validation.uuid"
-	ErrKeyValidationInvalid       = "validation.invalid"
+	ErrKeyValidationInvalid      = "validation.invalid"
 	ErrKeyValidationBodyInvalid  = "validation.body_invalid"
 	ErrKeyValidationTypeMismatch = "validation.type_mismatch"
 )

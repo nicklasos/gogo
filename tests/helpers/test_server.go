@@ -10,11 +10,13 @@ import (
 	"strings"
 	"testing"
 
+	"app/config"
 	"app/internal"
 	"app/internal/auth"
 	"app/internal/db"
 	"app/internal/example"
 	"app/internal/logger"
+	"app/internal/uploads"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -51,8 +53,15 @@ func CreateTestServer(t *testing.T, ctx context.Context, tx pgx.Tx, queries *db.
 		t.Fatalf("Failed to create test logger: %v", err)
 	}
 
+	// Create test config
+	testConfig := &config.Config{
+		UploadFolder: t.TempDir(),
+		FilesBaseURL: "http://localhost:8181/api/files",
+	}
+
 	// Create minimal app structure for testing
 	app := &internal.App{
+		Config:  testConfig,
 		Queries: queries,
 		Logger:  testLogger,
 		Api:     router.Group("/api/v1"),
@@ -66,6 +75,9 @@ func CreateTestServer(t *testing.T, ctx context.Context, tx pgx.Tx, queries *db.
 
 	// Register example routes
 	example.RegisterRoutes(app, authService)
+
+	// Register uploads routes
+	uploads.RegisterRoutes(app, authService)
 
 	// Create test server
 	server := httptest.NewServer(router)

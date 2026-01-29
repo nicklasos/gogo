@@ -14,6 +14,7 @@ import (
 	custommiddleware "app/internal/middleware"
 	"app/internal/redis"
 	"app/internal/scheduler"
+	"app/internal/uploads"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -154,6 +155,9 @@ func main() {
 
 	// Register example routes
 	example.RegisterRoutes(app, authService)
+
+	// Register uploads routes
+	uploads.RegisterRoutes(app, authService)
 
 	// Swagger route - set host dynamically
 	docs.SwaggerInfo.Host = cfg.AppURL

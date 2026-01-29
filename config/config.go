@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 
@@ -25,6 +26,8 @@ type Config struct {
 	LogOutput       string
 	JWTSecret       string
 	AppURL          string
+	FilesBaseURL    string
+	UploadFolder    string
 
 	// Scheduler configuration
 	EnableScheduler bool
@@ -52,6 +55,8 @@ func Load() (*Config, error) {
 		LogOutput:       getEnv("LOG_OUTPUT", "both"),
 		JWTSecret:       getEnv("JWT_SECRET", ""),
 		AppURL:          getEnv("APP_URL", "localhost:8181"),
+		FilesBaseURL:    getEnv("FILES_BASE_URL", fmt.Sprintf("http://localhost:%s/api/files", getEnv("PORT", "8181"))),
+		UploadFolder:    getEnv("UPLOAD_FOLDER", "./uploads"),
 
 		// Scheduler configuration
 		EnableScheduler: getEnvBool("ENABLE_SCHEDULER", true),

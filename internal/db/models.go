@@ -26,6 +26,19 @@ type RefreshToken struct {
 	IsRevoked pgtype.Bool      `db:"is_revoked" json:"is_revoked"`
 }
 
+type Upload struct {
+	ID               int32            `db:"id" json:"id"`
+	UserID           int32            `db:"user_id" json:"user_id"`
+	FolderID         int32            `db:"folder_id" json:"folder_id"`
+	Type             string           `db:"type" json:"type"`
+	RelativePath     string           `db:"relative_path" json:"relative_path"`
+	OriginalFilename string           `db:"original_filename" json:"original_filename"`
+	FileSize         int64            `db:"file_size" json:"file_size"`
+	MimeType         pgtype.Text      `db:"mime_type" json:"mime_type"`
+	CreatedAt        pgtype.Timestamp `db:"created_at" json:"created_at"`
+	UpdatedAt        pgtype.Timestamp `db:"updated_at" json:"updated_at"`
+}
+
 type User struct {
 	ID        int32            `db:"id" json:"id"`
 	Email     string           `db:"email" json:"email"`
