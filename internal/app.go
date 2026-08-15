@@ -18,4 +18,5 @@ type App struct {
 	Cache   cache.Cache
 	Logger  *logger.Logger
 	Api     *gin.RouterGroup
+	Images  *ImageService
 }

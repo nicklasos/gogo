@@ -9,18 +9,24 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"app/config"
 	"app/internal"
 	"app/internal/auth"
+	"app/internal/cache"
 	"app/internal/db"
 	"app/internal/example"
 	"app/internal/logger"
+	custommiddleware "app/internal/middleware"
 	"app/internal/uploads"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
 )
+
+const TestJWTSecret = "test-secret-key"
 
 // TestServer wraps httptest.Server with helper methods
 type TestServer struct {
@@ -35,51 +41,65 @@ type TestResponse struct {
 	Header     http.Header
 }
 
+// GenerateTestJWT creates a valid JWT token for testing
+func GenerateTestJWT(userID int32, email string) string {
+	claims := &custommiddleware.Claims{
+		UserID: userID,
+		Email:  email,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(TestJWTSecret))
+	if err != nil {
+		panic(fmt.Sprintf("Failed to sign test JWT: %v", err))
+	}
+	return tokenString
+}
+
 // CreateTestServer creates a test server with transaction-scoped database queries
 func CreateTestServer(t *testing.T, ctx context.Context, tx pgx.Tx, queries *db.Queries) *TestServer {
-	// Set Gin to test mode
 	gin.SetMode(gin.TestMode)
 
-	// Create router
 	router := gin.New()
 
-	// Logger
 	testLogger, err := logger.New(logger.Config{
 		Level:  "debug",
 		Format: "text",
-		Output: "stdout", // or a writer that captures logs for tests
+		Output: "stdout",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
 	}
 
-	// Create test config
+	router.Use(custommiddleware.Recovery(testLogger))
+	router.Use(custommiddleware.ErrorHandler(testLogger))
+
 	testConfig := &config.Config{
 		UploadFolder: t.TempDir(),
 		FilesBaseURL: "http://localhost:8181/api/files",
+		JWTSecret:    TestJWTSecret,
 	}
 
-	// Create minimal app structure for testing
+	memCache := cache.NewMemoryCache()
+
 	app := &internal.App{
 		Config:  testConfig,
 		Queries: queries,
+		Cache:   memCache,
 		Logger:  testLogger,
 		Api:     router.Group("/api/v1"),
+		Images:  internal.NewImageService(testConfig.FilesBaseURL),
 	}
 
-	// Register auth routes
-	jwtSecret := []byte("test-secret-key")
-	authService := auth.NewAuthService(queries, jwtSecret, testLogger)
-	authHandler := auth.NewAuthHandler(authService, testLogger)
-	auth.RegisterRoutes(app.Api, authHandler, authService)
-
-	// Register example routes
+	authService := auth.RegisterRoutes(app)
 	example.RegisterRoutes(app, authService)
-
-	// Register uploads routes
 	uploads.RegisterRoutes(app, authService)
+	uploads.RegisterPublicRoutes(router, app)
 
-	// Create test server
 	server := httptest.NewServer(router)
 
 	return &TestServer{
@@ -95,27 +115,53 @@ func (ts *TestServer) Close() {
 
 // GET makes a GET request to the test server
 func (ts *TestServer) GET(path string) *TestResponse {
-	return ts.makeRequest("GET", path, nil)
+	return ts.makeRequest("GET", path, nil, nil)
+}
+
+// GETAuth makes an authenticated GET request
+func (ts *TestServer) GETAuth(path, token string) *TestResponse {
+	return ts.makeRequest("GET", path, nil, map[string]string{
+		"Authorization": "Bearer " + token,
+	})
 }
 
 // POST makes a POST request to the test server
 func (ts *TestServer) POST(path string, body interface{}) *TestResponse {
-	var bodyReader io.Reader
-	if body != nil {
-		if str, ok := body.(string); ok {
-			bodyReader = strings.NewReader(str)
-		} else if reader, ok := body.(io.Reader); ok {
-			bodyReader = reader
-		} else {
-			bodyBytes, _ := json.Marshal(body)
-			bodyReader = strings.NewReader(string(bodyBytes))
-		}
-	}
-	return ts.makeRequest("POST", path, bodyReader)
+	return ts.makeRequest("POST", path, body, nil)
+}
+
+// POSTAuth makes an authenticated POST request
+func (ts *TestServer) POSTAuth(path string, body interface{}, token string) *TestResponse {
+	return ts.makeRequest("POST", path, body, map[string]string{
+		"Authorization": "Bearer " + token,
+	})
 }
 
 // PUT makes a PUT request to the test server
 func (ts *TestServer) PUT(path string, body interface{}) *TestResponse {
+	return ts.makeRequest("PUT", path, body, nil)
+}
+
+// PUTAuth makes an authenticated PUT request
+func (ts *TestServer) PUTAuth(path string, body interface{}, token string) *TestResponse {
+	return ts.makeRequest("PUT", path, body, map[string]string{
+		"Authorization": "Bearer " + token,
+	})
+}
+
+// DELETE makes a DELETE request to the test server
+func (ts *TestServer) DELETE(path string) *TestResponse {
+	return ts.makeRequest("DELETE", path, nil, nil)
+}
+
+// DELETEAuth makes an authenticated DELETE request
+func (ts *TestServer) DELETEAuth(path, token string) *TestResponse {
+	return ts.makeRequest("DELETE", path, nil, map[string]string{
+		"Authorization": "Bearer " + token,
+	})
+}
+
+func (ts *TestServer) makeRequest(method, path string, body interface{}, headers map[string]string) *TestResponse {
 	var bodyReader io.Reader
 	if body != nil {
 		if str, ok := body.(string); ok {
@@ -127,25 +173,18 @@ func (ts *TestServer) PUT(path string, body interface{}) *TestResponse {
 			bodyReader = strings.NewReader(string(bodyBytes))
 		}
 	}
-	return ts.makeRequest("PUT", path, bodyReader)
-}
 
-// DELETE makes a DELETE request to the test server
-func (ts *TestServer) DELETE(path string) *TestResponse {
-	return ts.makeRequest("DELETE", path, nil)
-}
-
-// makeRequest makes an HTTP request to the test server
-func (ts *TestServer) makeRequest(method, path string, body io.Reader) *TestResponse {
 	url := ts.server.URL + path
-
-	req, err := http.NewRequest(method, url, body)
+	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create request: %v", err))
 	}
 
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	for key, value := range headers {
+		req.Header.Set(key, value)
 	}
 
 	client := &http.Client{}
@@ -189,7 +228,7 @@ func (ts *TestServer) NewRequest(method, path string, body io.Reader) *http.Requ
 
 // Do executes an HTTP request and returns the response
 func (ts *TestServer) Do(req *http.Request) *TestResponse {
-	if req.Body != nil {
+	if req.Body != nil && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
 

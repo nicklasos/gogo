@@ -41,7 +41,7 @@ func RunTest(app *internal.CLIApp, args []string) {
 
 	// Test example service initialization
 	fmt.Println("Testing example service...")
-	_ = example.NewExampleService(app.Queries)
+	_ = example.NewExampleService(app.Queries, nil)
 	fmt.Println("Example service initialized successfully")
 
 	// Test basic query

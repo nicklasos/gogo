@@ -9,7 +9,7 @@ make build
 
 Transfer the binary to your server:
 ```bash
-scp smartcity-api your-server:/opt/smartcity-api/
+scp bin/api your-server:/var/www/app/bin/
 ```
 
 ## 2. Install Supervisord
@@ -31,33 +31,33 @@ sudo dnf install supervisor
 
 1. Copy the configuration file to supervisord directory:
 ```bash
-sudo cp smartcity-api.conf /etc/supervisor/conf.d/
+sudo cp app-supervisord.conf /etc/supervisor/conf.d/gogo-api.conf
 ```
 
 2. Edit the configuration file and update the paths:
 ```bash
-sudo nano /etc/supervisor/conf.d/smartcity-api.conf
+sudo nano /etc/supervisor/conf.d/gogo-api.conf
 ```
 
 Update these values:
-- `command=/opt/smartcity-api/smartcity-api` (path to your binary)
-- `directory=/opt/smartcity-api` (working directory)
-- `user=smartcity` (create a dedicated user)
+- `command=/var/www/app/bin/api` (path to your binary)
+- `directory=/var/www/app` (working directory)
+- `user=ubuntu` (or a dedicated app user)
 - Add any environment variables your app needs
 
-## 4. Create Application User
+## 4. Create Application User (optional)
 
 Create a dedicated user for your application:
 ```bash
-sudo useradd -r -s /bin/false smartcity
-sudo chown -R smartcity:smartcity /opt/smartcity-api
+sudo useradd -r -s /bin/false app
+sudo chown -R app:app /var/www/app
 ```
 
 ## 5. Create Log Directory
 
 ```bash
-sudo mkdir -p /var/log/supervisor
-sudo chown supervisor:supervisor /var/log/supervisor
+sudo mkdir -p /var/log/app
+sudo chown ubuntu:ubuntu /var/log/app
 ```
 
 ## 6. Start and Enable Supervisord
@@ -72,23 +72,23 @@ sudo supervisorctl reread
 sudo supervisorctl update
 
 # Start your application
-sudo supervisorctl start smartcity-api
+sudo supervisorctl start gogo-api
 ```
 
 ## 7. Manage Your Application
 
 ```bash
 # Check status
-sudo supervisorctl status smartcity-api
+sudo supervisorctl status gogo-api
 
 # Start/stop/restart
-sudo supervisorctl start smartcity-api
-sudo supervisorctl stop smartcity-api
-sudo supervisorctl restart smartcity-api
+sudo supervisorctl start gogo-api
+sudo supervisorctl stop gogo-api
+sudo supervisorctl restart gogo-api
 
 # View logs
-sudo tail -f /var/log/supervisor/smartcity-api.log
-sudo tail -f /var/log/supervisor/smartcity-api-error.log
+sudo tail -f /var/log/app/app.log
+sudo tail -f /var/log/app/app-error.log
 
 # Reload configuration after changes
 sudo supervisorctl reread
@@ -99,7 +99,7 @@ sudo supervisorctl update
 
 Add your environment variables to the config file:
 ```ini
-environment=PORT=8181,DATABASE_URL="your-db-url",REDIS_URL="your-redis-url",GO_ENV=production
+environment=PORT=8181,DATABASE_URL="your-db-url",REDIS_URL="your-redis-url",JWT_SECRET="your-secret",GO_ENV=production
 ```
 
 ## 9. Firewall Configuration
@@ -116,7 +116,7 @@ Consider setting up nginx as a reverse proxy:
 server {
     listen 80;
     server_name your-domain.com;
-    
+
     location / {
         proxy_pass http://localhost:8181;
         proxy_set_header Host $host;

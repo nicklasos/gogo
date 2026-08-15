@@ -1,7 +1,9 @@
 package main
 
 import (
+	"flag"
 	"log"
+	"os"
 
 	"app/config"
 	"app/docs"
@@ -43,13 +45,30 @@ import (
 // @description Type "Bearer" followed by a space and JWT token.
 
 func main() {
-	// Config
+	var (
+		port      = flag.String("port", "", "Server port (overrides config)")
+		useTestDB = flag.Bool("test-db", false, "Use TEST_DATABASE_URL instead of DATABASE_URL")
+	)
+	flag.Parse()
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal("Failed to load configuration:", err)
 	}
 
-	// Logger
+	if *useTestDB {
+		testDBURL := os.Getenv("TEST_DATABASE_URL")
+		if testDBURL == "" {
+			log.Fatal("TEST_DATABASE_URL environment variable is required when using --test-db flag")
+		}
+		cfg.DatabaseURL = testDBURL
+		log.Println("Using TEST_DATABASE_URL for database connection")
+	}
+
+	if *port != "" {
+		cfg.Port = *port
+	}
+
 	logger, err := logger.New(logger.Config{
 		Level:     cfg.LogLevel,
 		Format:    cfg.LogFormat,
@@ -68,7 +87,6 @@ func main() {
 		"debug", cfg.Debug,
 	)
 
-	// DB
 	database, err := db.NewConnection(cfg)
 	if err != nil {
 		logger.Error("Failed to connect to database", "error", err)
@@ -76,7 +94,8 @@ func main() {
 	}
 	defer database.Close()
 
-	// Redis
+	queries := db.New(database)
+
 	redisClient, err := redis.NewConnection(cfg)
 	if err != nil {
 		logger.Error("Failed to connect to Redis", "error", err)
@@ -84,43 +103,29 @@ func main() {
 	}
 	defer redisClient.Close()
 
-	// Cache
 	cacheService := cache.NewRedisCache(redisClient, cfg.AppName+":")
 
-	// Gin
 	r := gin.New()
-
 	r.RedirectTrailingSlash = false
 
-	// Middleware
 	r.Use(custommiddleware.RequestID(logger))
 	r.Use(custommiddleware.Recovery(logger))
 	// r.Use(custommiddleware.RequestLogging(logger))
 	r.Use(custommiddleware.ErrorHandler(logger))
 	r.Use(cors.Default())
 
-	// Health check endpoint
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status":  "healthy",
-			"app":     cfg.AppName,
-			"version": cfg.AppVersion,
-			"env":     cfg.Environment,
-		})
-	})
-
 	api := r.Group("/api/v1")
 
 	app := &internal.App{
 		Config:  cfg,
 		DB:      database,
-		Queries: db.New(database),
+		Queries: queries,
 		Cache:   cacheService,
 		Logger:  logger,
 		Api:     api,
+		Images:  internal.NewImageService(cfg.FilesBaseURL),
 	}
 
-	// Initialize scheduler if enabled
 	if cfg.EnableScheduler {
 		deps := &scheduler.Dependencies{
 			Config:  cfg,
@@ -137,33 +142,43 @@ func main() {
 
 		cronScheduler.Start()
 		logger.Info("Scheduler started in integrated mode")
-
-		// Ensure graceful shutdown of scheduler
 		defer cronScheduler.Stop()
 	}
 
-	// Initialize auth service
 	if cfg.JWTSecret == "" {
 		logger.Error("JWT_SECRET is required")
 		log.Fatal("JWT_SECRET environment variable is required")
 	}
-	authService := auth.NewAuthService(app.Queries, []byte(cfg.JWTSecret), logger)
-	authHandler := auth.NewAuthHandler(authService, logger)
 
-	// Register auth routes
-	auth.RegisterRoutes(api, authHandler, authService)
-
-	// Register example routes
+	authService := auth.RegisterRoutes(app)
 	example.RegisterRoutes(app, authService)
-
-	// Register uploads routes
 	uploads.RegisterRoutes(app, authService)
+	uploads.RegisterPublicRoutes(r, app)
 
-	// Swagger route - set host dynamically
+	// Healthcheck (DB ping)
+	healthHandler := func(c *gin.Context) {
+		if err := app.Queries.Healthcheck(c.Request.Context()); err != nil {
+			c.JSON(503, gin.H{
+				"status":  "unhealthy",
+				"app":     cfg.AppName,
+				"version": cfg.AppVersion,
+				"env":     cfg.Environment,
+			})
+			return
+		}
+		c.JSON(200, gin.H{
+			"status":  "healthy",
+			"app":     cfg.AppName,
+			"version": cfg.AppVersion,
+			"env":     cfg.Environment,
+		})
+	}
+	r.Match([]string{"GET", "HEAD"}, "/health", healthHandler)
+	api.Match([]string{"GET", "HEAD"}, "/health", healthHandler)
+
 	docs.SwaggerInfo.Host = cfg.AppURL
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// Start server
 	address := ":" + cfg.Port
 	logger.Info("Server starting", "address", address)
 	if err := r.Run(address); err != nil {

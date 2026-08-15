@@ -2,8 +2,6 @@
 
 A production-ready Go API template built with **Gin**, **PostgreSQL**, **Redis**, **SQLC**, and **Goose** migrations.
 
-![Logo](logo.jpg)
-
 ## Quick Start
 
 ### Prerequisites
@@ -28,11 +26,14 @@ make dev
 
 ## Features
 
-- **Authentication**: JWT-based auth with registration, login, refresh tokens
-- **CRUD Example**: Complete example module demonstrating patterns
-- **Pagination**: Context-based pagination middleware
+- **Authentication**: JWT auth with registration, login, refresh tokens, and logout (revokes refresh tokens)
+- **CRUD Example**: Complete example module with Redis `Remember` caching
+- **Pagination**: Page-based and cursor helpers (`last_id`, `last_created_at`)
 - **Type Safety**: SQLC for type-safe database operations
 - **Swagger**: Auto-generated API documentation
+- **Uploads**: File upload with list/get/delete and static file serving
+- **Healthcheck**: `/health` pings PostgreSQL
+- **Scheduler**: Optional cron jobs (refresh-token cleanup)
 
 ## Tech Stack
 
@@ -48,36 +49,33 @@ make dev
 
 ```
 gogo/
-├── cmd/api/main.go              # Application entry point
+├── cmd/api/main.go              # Application entry point (--port, --test-db)
+├── cmd/cron/main.go             # Standalone scheduler
+├── cmd/cli/main.go              # CLI (migrate, test)
 ├── internal/
-│   ├── app.go                   # App context with DB, Cache, Logger
+│   ├── app.go                   # App context with DB, Cache, Logger, Images
 │   ├── auth/                    # Authentication module
-│   │   ├── auth_service.go
-│   │   ├── handlers.go
-│   │   ├── routes.go
-│   │   └── types.go
-│   ├── example/                 # Example CRUD module
-│   │   ├── example_service.go
-│   │   ├── handler.go
-│   │   ├── routes.go
-│   │   └── types.go
-│   ├── db/
-│   │   ├── queries/              # SQL queries
-│   │   └── *.sql.go             # SQLC generated code
-│   ├── middleware/
-│   │   ├── user_auth.go         # JWT authentication
-│   │   └── pagination.go        # Pagination context
-│   └── responses.go             # PaginationMeta helper
+│   ├── example/                 # Example CRUD module (cache demo)
+│   ├── uploads/                 # File uploads
+│   ├── db/queries/              # SQL queries (sqlc)
+│   ├── middleware/              # JWT, pagination, recovery
+│   ├── cache/                   # Redis + MemoryCache
+│   ├── errs/                    # Domain errors
+│   └── scheduler/               # Cron jobs
 ├── migrations/                  # Goose database migrations
-└── sqlc.yaml                    # SQLC configuration
+└── sqlc.yaml
 ```
 
 ## Development Commands
 
 ```bash
+make help             # List all targets
+
 # Development
 make dev              # Hot reload server
-make test             # Run all tests
+make run              # Start API
+make run-test-db      # Start API against TEST_DATABASE_URL
+make test             # Run all tests (auto-migrates test DB)
 
 # Database & SQLC
 make migrate-up       # Apply migrations
@@ -94,10 +92,10 @@ make swagger          # Generate API docs
 - `POST /api/v1/auth/login` - Login
 - `POST /api/v1/auth/refresh` - Refresh token
 - `GET /api/v1/auth/me` - Get current user (protected)
-- `POST /api/v1/auth/logout` - Logout (protected)
+- `POST /api/v1/auth/logout` - Logout and revoke refresh tokens (protected)
 
 ### Examples
-- `GET /api/v1/examples` - List examples with pagination (protected)
+- `GET /api/v1/examples` - List examples with pagination (protected, cached)
 - `POST /api/v1/examples` - Create example (protected)
 - `GET /api/v1/examples/:id` - Get example (protected)
 - `PUT /api/v1/examples/:id` - Update example (protected)
@@ -105,13 +103,14 @@ make swagger          # Generate API docs
 
 ### Uploads
 - `POST /api/v1/uploads` - Upload a file (protected)
-  - Accepts: `multipart/form-data` with `file` field
-  - Returns: Upload ID, relative path, full URL, type, and metadata
-  - Supported types: images (jpg, jpeg, png, gif, webp), videos (mp4, avi, mov), documents (pdf, doc, docx, txt), audio (mp3, wav, ogg)
-  - Max file size: 50MB (configurable)
+- `GET /api/v1/uploads` - List uploads (protected)
+- `GET /api/v1/uploads/:id` - Get upload (protected)
+- `DELETE /api/v1/uploads/:id` - Delete upload (protected)
+- `GET /api/files/*` - Serve uploaded files (public)
 
 ### Other
-- `GET /health` - Health check
+- `GET /health` - Health check (DB ping)
+- `GET /api/v1/health` - Same health check under API prefix
 - `GET /swagger/*` - API documentation
 
 ## Environment Variables
@@ -124,6 +123,7 @@ JWT_SECRET=your-secret-key-here
 PORT=8181
 APP_ENV=development
 LOG_LEVEL=info
+ENABLE_SCHEDULER=false
 ```
 
 ## Patterns
@@ -131,88 +131,35 @@ LOG_LEVEL=info
 ### Context Pattern
 - **User ID**: Use `middleware.GetUserIDFromContext(c)` in handlers
 - **Pagination**: Use `middleware.GetPaginationParamsFromContext(c, default, min, max)`
+- **Cursor pagination**: `GetLastIDPaginationParamsFromContext` / `GetCreatedAtPaginationParamsFromContext`
 
 ### Types.go Pattern
 - All request/response types go in `types.go` within each module
 - Services define internal types (e.g., `PaginatedExamplesResult`) in service files
 - Handlers convert service types to response types from `types.go`
 
+### Cache Pattern
+- Use `cache.Remember` for short-lived list responses (see `example` module)
+- Use `cache.MemoryCache` in tests (no Redis required)
+- Invalidate on create/update/delete
+
 ## Uploads Module
 
-The uploads module allows users to upload files (images, videos, documents, audio) and stores metadata in the database.
+The uploads module allows users to upload files (images, videos, documents, audio) and stores metadata in the database. Files are served from `/api/files/...`.
 
-### Usage
-
-#### Uploading Files
-
-```go
-// In your handler or service
-import "app/internal/uploads"
-
-// Get upload service from app context
-config := uploads.DefaultUploadConfig(app.Config.UploadFolder, app.Config.FilesBaseURL)
-service := uploads.NewUploadService(app.Queries, config)
-
-// Upload file
-upload, err := service.UploadFile(ctx, fileHeader, userID)
-if err != nil {
-    // Handle error
-}
-// upload.ID, upload.RelativePath, upload.Type, etc.
-```
-
-#### Retrieving Uploads
-
-```go
-// Get a single upload
-upload, err := service.GetUpload(ctx, uploadID, userID)
-if err != nil {
-    // Handle error (returns ErrUploadNotFound if not found)
-}
-
-// List all uploads for a user
-uploads, err := service.ListUploads(ctx, userID)
-if err != nil {
-    // Handle error
-}
-```
-
-#### Deleting Uploads
-
-```go
-// Delete an upload (removes from DB and disk)
-err := service.DeleteUpload(ctx, uploadID, userID)
-if err != nil {
-    // Handle error (returns ErrUploadNotFound if not found)
-}
-```
-
-#### Configuration
-
-The upload service is configurable:
+### Configuration
 
 ```go
 config := &uploads.UploadConfig{
     UploadFolder: "./uploads",
     BaseURL:      "http://localhost:8181/api/files",
     MaxFileSize:  50 * 1024 * 1024, // 50MB
-    AllowedTypes: []string{".jpg", ".png", ".pdf"}, // Custom allowed types
+    AllowedTypes: []string{".jpg", ".png", ".pdf"},
     GetFolderID: func(ctx context.Context, userID int32) (int32, error) {
-        // Custom logic to determine folder ID
-        // Default: returns userID
         return userID, nil
     },
 }
 ```
-
-### File Types
-
-The service automatically detects file types:
-- **image**: jpg, jpeg, png, gif, webp
-- **video**: mp4, avi, mov, wmv, flv
-- **audio**: mp3, wav, ogg, aac, flac
-- **document**: pdf, doc, docx, txt, xls, xlsx
-- **other**: any other extension
 
 ## Adding New Modules
 
@@ -229,6 +176,7 @@ The project uses structured error handling with the `errs` package. See `docs/ER
 **Quick reference:**
 - Services return domain errors: `errs.NewNotFoundError(key, message)`
 - Handlers use: `errs.RespondWithError(c, err)` or `errs.RespondWithValidationError(c, err)`
+- DB helpers: `errs.WrapDatabaseError`, `errs.DomainErrorFromPostgresUniqueViolation`
 - See `internal/example/` for complete examples
 
 ## Links
@@ -236,3 +184,4 @@ The project uses structured error handling with the `errs` package. See `docs/ER
 - **API Docs**: `/swagger/index.html` when running
 - **Error Handling**: See `docs/ERRORS.md` for error handling guide
 - **Architecture**: See `CLAUDE.md` for detailed patterns
+- **Deployment**: See `DEPLOYMENT.md` for supervisord setup

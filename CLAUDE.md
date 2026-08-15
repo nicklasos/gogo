@@ -11,27 +11,30 @@
 ### Directory Structure
 ```
 gogo/
-├── cmd/api/main.go              # Main application entry
+├── cmd/api/main.go              # Main application entry (--port, --test-db)
+├── cmd/cron/main.go             # Standalone scheduler
+├── cmd/cli/main.go              # CLI (migrate, smoke tests)
 ├── internal/
-│   ├── app.go                   # App context with DB, Cache, Logger
+│   ├── app.go                   # App context with DB, Cache, Logger, Images
+│   ├── images.go                # Relative path → public URL helper
 │   ├── auth/                    # Authentication module
 │   │   ├── auth_service.go      # Business logic
 │   │   ├── handlers.go          # HTTP handlers
-│   │   ├── routes.go            # Route registration
+│   │   ├── routes.go            # Route registration (returns *AuthService)
 │   │   └── types.go             # Request/response types
-│   ├── example/                 # Example CRUD module
-│   │   ├── example_service.go   # Business logic
-│   │   ├── handler.go           # HTTP handlers
-│   │   ├── routes.go            # Route registration
-│   │   └── types.go             # Request/response types
+│   ├── example/                 # Example CRUD module (cache demo)
+│   ├── uploads/                 # File uploads + public static route
 │   ├── db/
-│   │   └── queries/              # SQL queries
+│   │   └── queries/             # SQL queries (incl. technical Healthcheck)
 │   ├── middleware/
 │   │   ├── user_auth.go         # JWT authentication
-│   │   └── pagination.go        # Pagination context
+│   │   └── pagination.go        # Page + cursor pagination
+│   ├── cache/                   # RedisCache + MemoryCache
+│   ├── errs/                    # Domain errors + WrapDatabaseError
+│   ├── scheduler/               # Cron (cleanup refresh tokens)
 │   └── responses.go             # PaginationMeta helper
 ├── migrations/                  # Goose database migrations
-└── Makefile                     # Development commands
+└── Makefile                     # Development commands (make help)
 ```
 
 ### Layer Responsibilities
@@ -68,36 +71,17 @@ When adding new modules:
 - **Routes** (`routes.go`): Only layer that knows about `*internal.App`
 - **Handlers**: Receive specific services they need (e.g., `*OrderService`)
 - **Services**: Receive specific dependencies (e.g., `*db.Queries`, logger, cache)
+- **Auth**: `auth.RegisterRoutes(app)` returns `*AuthService` for other modules
 
 ## Context Patterns
 
 ### User ID from Context
-Use `middleware.GetUserIDFromContext(c)` in handlers to get authenticated user ID:
-
-```go
-func (h *Handler) CreateOrder(c *gin.Context) {
-    userID, err := middleware.GetUserIDFromContext(c)
-    if err != nil {
-        errs.RespondWithUnauthorized(c, "Unauthorized")
-        return
-    }
-    // Use userID...
-}
-```
+Use `middleware.GetUserIDFromContext(c)` in handlers to get authenticated user ID.
 
 ### Pagination from Context
-Use `middleware.GetPaginationParamsFromContext(c, default, min, max)` in handlers:
-
-```go
-func (h *Handler) ListOrders(c *gin.Context) {
-    pagination, err := middleware.GetPaginationParamsFromContext(c, 20, 1, 100)
-    if err != nil {
-        errs.RespondWithBadRequest(c, errs.ErrKeyBadRequest, err.Error())
-        return
-    }
-    // Use pagination.Page and pagination.PageSize...
-}
-```
+- Page-based: `middleware.GetPaginationParamsFromContext(c, default, min, max)`
+- Cursor by ID: `middleware.GetLastIDPaginationParamsFromContext(c, default, min, max)`
+- Cursor by time: `middleware.GetCreatedAtPaginationParamsFromContext(c, default, min, max)`
 
 ## Types.go Pattern
 
@@ -106,35 +90,6 @@ func (h *Handler) ListOrders(c *gin.Context) {
 - **Service types** (e.g., `PaginatedExamplesResult`) are defined in service files
 - **Handlers** use types from `types.go` for requests/responses
 - **Services** use internal types and convert to handler types
-- Clear separation: handlers know about types.go, services don't
-
-### Example
-```go
-// types.go
-type CreateRequest struct {
-    Title string `json:"title" binding:"required"`
-}
-
-type ExampleResponse struct {
-    ID    int32  `json:"id"`
-    Title string `json:"title"`
-}
-
-// example_service.go
-type PaginatedExamplesResult struct {
-    Data     []db.Example
-    Total    int64
-    Page     int32
-    PageSize int32
-}
-
-// handler.go
-func (h *Handler) Create(c *gin.Context) {
-    var req CreateRequest  // From types.go
-    // ...
-    response := ExampleResponse{...}  // From types.go
-}
-```
 
 ## Database Management
 
@@ -144,7 +99,6 @@ func (h *Handler) Create(c *gin.Context) {
 # Format: migrations/001_description.sql, 002_description.sql, etc.
 
 # Apply migrations
-export DATABASE_URL="your_connection_string"
 make migrate-up
 
 # Generate sqlc after schema changes
@@ -158,15 +112,14 @@ make sqlc
 
 ## Development Commands
 ```bash
-# Development
+make help             # List targets
 make run              # Start server
+make run-test-db      # Start against TEST_DATABASE_URL
 make build            # Build binary
-make test             # Run all tests
-
-# Database
+make test             # Run all tests (auto-migrates test DB)
 make migrate-up       # Apply migrations
-make sqlc            # Generate sqlc code
-make swagger         # Generate API docs
+make sqlc             # Generate sqlc code
+make swagger          # Generate API docs
 ```
 
 ## Code Conventions
@@ -174,7 +127,7 @@ make swagger         # Generate API docs
 - **Services**: `UserService`, `OrderService`
 - **SQL queries**: `GetUserByID`, `CreateUser`, `ListUsers`
 - **Files**: `user_service.go`, `order_handler.go`
-- **Cache keys**: `user:123`, `posts:user:123`
+- **Cache keys**: `user:123`, `examples:user:123:page:1:size:20`
 
 ## Key Principles
 1. **Dependency Injection via Routes** - Only `routes.go` knows about `*internal.App`
@@ -185,6 +138,7 @@ make swagger         # Generate API docs
 6. **Module-based organization** - Self-contained domains
 7. **Context patterns** - Use middleware for user ID and pagination
 8. **Types.go pattern** - All request/response types in types.go
+9. **Cache where useful** - `Remember` + invalidate on writes (see example module)
 
 ## Testing Framework
 
@@ -192,27 +146,26 @@ make swagger         # Generate API docs
 - **Transaction Rollback Pattern** - Each test runs in isolation with automatic rollback
 - **Real Database Testing** - Uses actual PostgreSQL (no mocking)
 - **Test Database Separation** - Uses `TEST_DATABASE_URL` environment variable
+- **MemoryCache** - Tests use in-memory cache (no Redis required)
+- **GenerateTestJWT** - Helper for authenticated integration requests
 
 ### Test Patterns
 ```go
 func TestServiceMethod(t *testing.T) {
     helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-        // Setup test data
-        example := helpers.CreateTestExample(t, ctx, tx)
-        
-        // Test service method
-        service := NewService(queries)
+        example := helpers.CreateTestExample(t, ctx, tx, user.ID)
+
+        service := NewService(queries, nil)
         result, err := service.Method(ctx, example.ID)
-        
-        // Assertions
+
         require.NoError(t, err)
         assert.Equal(t, expected, result)
     })
 }
 ```
 
-## What We DON't Use
+## What We DON'T Use
 - NO Repository Pattern - Services use sqlc directly
 - NO ORM - Raw SQL with sqlc for type safety
 - NO complex abstractions - Keep it simple
-- NO Test Mocking - Real database with transaction rollback
+- NO Test Mocking of DB - Real database with transaction rollback

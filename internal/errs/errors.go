@@ -3,21 +3,29 @@ package errs
 import (
 	"errors"
 	"net/http"
+
+	"github.com/jackc/pgx/v5"
 )
 
-// Common application errors (deprecated - use DomainError constructors instead)
-var (
-	ErrNotFound   = errors.New("resource not found")
-	ErrBadRequest = errors.New("bad request")
-)
+// WrapDatabaseError wraps common database errors into DomainErrors.
+// pgx.ErrNoRows becomes a 404; other errors become 500 with full error logged.
+func WrapDatabaseError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return NewNotFoundError(ErrKeyNotFound, "resource not found")
+	}
+	return WrapInternal(ErrKeyInternalError, "database error", err)
+}
 
-// IsNotFound checks if error is a not found error
+// IsNotFound checks if error is a not found error (status 404)
 func IsNotFound(err error) bool {
 	domainErr := ExtractDomainError(err)
 	return domainErr != nil && domainErr.Status == http.StatusNotFound
 }
 
-// IsBadRequest checks if error is a bad request error
+// IsBadRequest checks if error is a bad request error (status 400)
 func IsBadRequest(err error) bool {
 	domainErr := ExtractDomainError(err)
 	return domainErr != nil && domainErr.Status == http.StatusBadRequest

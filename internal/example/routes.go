@@ -6,13 +6,9 @@ import (
 )
 
 func RegisterRoutes(app *internal.App, authService middleware.UserJWTVerifier) {
-	// Create service with only the dependencies it needs
-	service := NewExampleService(app.Queries)
-
-	// Create handler with only the service it needs
+	service := NewExampleService(app.Queries, app.Cache)
 	handler := NewHandler(service, app.Logger)
 
-	// Protected routes (require user authentication)
 	examples := app.Api.Group("/examples")
 	examples.Use(middleware.UserAuthMiddleware(authService))
 	{

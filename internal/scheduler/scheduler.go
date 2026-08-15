@@ -11,6 +11,7 @@ import (
 	"app/internal/db"
 	"app/internal/logger"
 	"app/internal/scheduler/jobs"
+
 	"github.com/robfig/cron/v3"
 )
 
@@ -38,7 +39,6 @@ type Scheduler struct {
 
 // NewScheduler creates a new scheduler instance with all dependencies
 func NewScheduler(deps *Dependencies) *Scheduler {
-	// Create cron with logger
 	cronLogger := cron.VerbosePrintfLogger(log.New(os.Stdout, "scheduler: ", log.LstdFlags))
 	c := cron.New(cron.WithLogger(cronLogger))
 
@@ -53,9 +53,8 @@ func (s *Scheduler) RegisterJobs() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Register example job
-	if err := s.registerExampleJob(); err != nil {
-		return fmt.Errorf("failed to register example job: %w", err)
+	if err := s.registerCleanupRefreshTokensJob(); err != nil {
+		return fmt.Errorf("failed to register cleanup refresh tokens job: %w", err)
 	}
 
 	return nil
@@ -87,23 +86,18 @@ func (s *Scheduler) GetEntries() []cron.Entry {
 	return s.cron.Entries()
 }
 
-// Private job registration methods
+func (s *Scheduler) registerCleanupRefreshTokensJob() error {
+	job := jobs.NewCleanupRefreshTokensJob(s.deps.Config, s.deps.Queries, s.deps.Logger)
 
-func (s *Scheduler) registerExampleJob() error {
-	// Initialize job once
-	job := jobs.NewExampleJob(s.deps.Config, s.deps.Queries, s.deps.Logger)
-
-	// Run example job every 2 hours
-	_, err := s.cron.AddFunc("@every 2h", func() {
+	_, err := s.cron.AddFunc("@daily", func() {
 		if err := job.Execute(context.Background()); err != nil {
-			s.deps.Logger.Error("Example job failed", err)
+			s.deps.Logger.Error("Cleanup refresh tokens job failed", "error", err)
 		}
 	})
-
 	if err != nil {
-		return fmt.Errorf("failed to add example job: %w", err)
+		return fmt.Errorf("failed to add cleanup refresh tokens job: %w", err)
 	}
 
-	s.deps.Logger.Info("Registered example job (every 2 hours)")
+	s.deps.Logger.Info("Registered cleanup-refresh-tokens job (daily)")
 	return nil
 }

@@ -203,6 +203,9 @@ func (s *UploadService) ListUploads(ctx context.Context, userID int32) ([]db.Upl
 	if err != nil {
 		return nil, errs.WrapInternal(errs.ErrKeyInternalError, "failed to list uploads", err)
 	}
+	if uploads == nil {
+		return []db.Upload{}, nil
+	}
 	return uploads, nil
 }
 

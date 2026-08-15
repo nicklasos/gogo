@@ -85,9 +85,19 @@ errs.RespondWithBadRequest(c, key, message)
 ## Wrapping Errors
 
 ```go
-// Wrap database/internal errors
+// Prefer WrapDatabaseError for sqlc/pgx errors (ErrNoRows → 404, else 500)
+if err != nil {
+    return nil, errs.WrapDatabaseError(err)
+}
+
+// Or wrap with an explicit key/message
 if err != nil {
     return nil, errs.WrapInternal(key, "Failed to create", err)
+}
+
+// Map unique constraint violations to stable domain errors
+if domainErr := errs.DomainErrorFromPostgresUniqueViolation(err); domainErr != nil {
+    return nil, ErrUserAlreadyExists
 }
 ```
 

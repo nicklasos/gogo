@@ -1,25 +1,28 @@
 package auth
 
 import (
+	"app/internal"
 	"app/internal/middleware"
-
-	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(r *gin.RouterGroup, handler *AuthHandler, authService *AuthService) {
-	// Public routes (no authentication required)
-	auth := r.Group("/auth")
+// RegisterRoutes wires auth routes and returns the AuthService for reuse by other modules.
+func RegisterRoutes(app *internal.App) *AuthService {
+	authService := NewAuthService(app.Queries, []byte(app.Config.JWTSecret), app.Logger)
+	handler := NewAuthHandler(authService, app.Logger)
+
+	auth := app.Api.Group("/auth")
 	{
 		auth.POST("/register", handler.Register)
 		auth.POST("/login", handler.Login)
 		auth.POST("/refresh", handler.RefreshToken)
 	}
 
-	// Protected routes (require user authentication)
-	userAuth := r.Group("/auth")
+	userAuth := app.Api.Group("/auth")
 	userAuth.Use(middleware.UserAuthMiddleware(authService))
 	{
 		userAuth.GET("/me", handler.GetMe)
 		userAuth.POST("/logout", handler.Logout)
 	}
+
+	return authService
 }

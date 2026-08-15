@@ -18,7 +18,7 @@ func TestExampleService_CreateExample(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
 			user := helpers.CreateTestUser(t, ctx, tx)
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: Create example
 			createdExample, err := service.CreateExample(ctx, user.ID, "Test Title", "Test Description")
@@ -37,7 +37,7 @@ func TestExampleService_CreateExample(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
 			user := helpers.CreateTestUser(t, ctx, tx)
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: Create example with empty description
 			createdExample, err := service.CreateExample(ctx, user.ID, "Test Title", "")
@@ -57,7 +57,7 @@ func TestExampleService_GetExample(t *testing.T) {
 			// Setup: Create a user and example
 			user := helpers.CreateTestUser(t, ctx, tx)
 			testExample := helpers.CreateTestExample(t, ctx, tx, user.ID)
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: Get example
 			result, err := service.GetExample(ctx, testExample.ID, user.ID)
@@ -75,7 +75,7 @@ func TestExampleService_GetExample(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
 			user := helpers.CreateTestUser(t, ctx, tx)
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: Get non-existent example
 			result, err := service.GetExample(ctx, 99999, user.ID)
@@ -93,7 +93,7 @@ func TestExampleService_GetExample(t *testing.T) {
 			user1 := helpers.CreateTestUser(t, ctx, tx)
 			user2 := helpers.CreateTestUser(t, ctx, tx)
 			testExample := helpers.CreateTestExample(t, ctx, tx, user1.ID)
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: Try to get example with different user ID
 			result, err := service.GetExample(ctx, testExample.ID, user2.ID)
@@ -112,7 +112,7 @@ func TestExampleService_UpdateExample(t *testing.T) {
 			// Setup: Create a user and example
 			user := helpers.CreateTestUser(t, ctx, tx)
 			testExample := helpers.CreateTestExample(t, ctx, tx, user.ID)
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: Update example
 			updatedExample, err := service.UpdateExample(ctx, testExample.ID, user.ID, "Updated Title", "Updated Description")
@@ -130,7 +130,7 @@ func TestExampleService_UpdateExample(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
 			user := helpers.CreateTestUser(t, ctx, tx)
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: Update non-existent example
 			result, err := service.UpdateExample(ctx, 99999, user.ID, "Title", "Description")
@@ -149,7 +149,7 @@ func TestExampleService_DeleteExample(t *testing.T) {
 			// Setup: Create a user and example
 			user := helpers.CreateTestUser(t, ctx, tx)
 			testExample := helpers.CreateTestExample(t, ctx, tx, user.ID)
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: Delete example
 			err := service.DeleteExample(ctx, testExample.ID, user.ID)
@@ -168,7 +168,7 @@ func TestExampleService_DeleteExample(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
 			user := helpers.CreateTestUser(t, ctx, tx)
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: Delete non-existent example
 			err := service.DeleteExample(ctx, 99999, user.ID)
@@ -187,7 +187,7 @@ func TestExampleService_ListExamples(t *testing.T) {
 			user := helpers.CreateTestUser(t, ctx, tx)
 			example1 := helpers.CreateTestExample(t, ctx, tx, user.ID)
 			example2 := helpers.CreateTestExample(t, ctx, tx, user.ID)
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: List examples
 			examples, err := service.ListExamples(ctx, user.ID)
@@ -211,7 +211,7 @@ func TestExampleService_ListExamples(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
 			user := helpers.CreateTestUser(t, ctx, tx)
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: List examples
 			examples, err := service.ListExamples(ctx, user.ID)
@@ -232,7 +232,7 @@ func TestExampleService_ListExamplesPaginated(t *testing.T) {
 			for i := 0; i < 5; i++ {
 				helpers.CreateTestExample(t, ctx, tx, user.ID)
 			}
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: List paginated examples
 			result, err := service.ListExamplesPaginated(ctx, user.ID, 1, 3)
@@ -254,7 +254,7 @@ func TestExampleService_ListExamplesPaginated(t *testing.T) {
 			for i := 0; i < 5; i++ {
 				helpers.CreateTestExample(t, ctx, tx, user.ID)
 			}
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: Get second page
 			result, err := service.ListExamplesPaginated(ctx, user.ID, 2, 3)
@@ -273,7 +273,7 @@ func TestExampleService_ListExamplesPaginated(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
 			user := helpers.CreateTestUser(t, ctx, tx)
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: List with invalid page
 			result, err := service.ListExamplesPaginated(ctx, user.ID, 0, 10)
@@ -288,7 +288,7 @@ func TestExampleService_ListExamplesPaginated(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
 			user := helpers.CreateTestUser(t, ctx, tx)
-			service := example.NewExampleService(queries)
+			service := example.NewExampleService(queries, nil)
 
 			// Test: List with invalid page size
 			result, err := service.ListExamplesPaginated(ctx, user.ID, 1, 101)

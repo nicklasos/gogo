@@ -1,6 +1,6 @@
-# SmartCity API Tests
+# Gogo API Tests
 
-This directory contains the test suite for the SmartCity API using the Laravel-style transaction rollback pattern.
+This directory contains the test suite for the Gogo API template using the Laravel-style transaction rollback pattern.
 
 ## Test Structure
 
@@ -11,9 +11,13 @@ tests/
 │   ├── test_server.go    # HTTP test server setup
 │   └── fixtures.go       # Test data fixtures
 ├── unit/             # Unit tests (services, pure logic)
-│   └── news_service_test.go
+│   ├── auth_service_test.go
+│   ├── example_service_test.go
+│   └── upload_service_test.go
 ├── integration/      # API integration tests
-│   └── news_api_test.go
+│   ├── auth_api_test.go
+│   ├── example_api_test.go
+│   └── upload_api_test.go
 ├── test_config.go    # Test configuration
 └── README.md         # This file
 ```
@@ -23,37 +27,36 @@ tests/
 ### Prerequisites
 1. Set up a test database (separate from development):
    ```bash
-   createdb smartcity_test
+   createdb gogo_test
    ```
 
-2. Run migrations on test database:
+2. Set `TEST_DATABASE_URL` in `.env` (or export it):
    ```bash
-   export DATABASE_URL="postgres://postgres:postgres@localhost:5432/smartcity_test?sslmode=disable"
-   make migrate-up
+   export TEST_DATABASE_URL="postgres://postgres@localhost:5432/gogo_test?sslmode=disable"
    ```
 
-3. Set test database URL:
+3. Run tests (migrations are applied automatically via Make):
    ```bash
-   export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5432/smartcity_test?sslmode=disable"
+   make test
    ```
 
 ### Running Tests
 
 ```bash
-# Run all tests
-go test ./tests/...
+# Run all tests (auto-migrates test DB when TEST_DATABASE_URL is set)
+make test
 
 # Run only unit tests
-go test ./tests/unit/...
+make test-unit
 
 # Run only integration tests
-go test ./tests/integration/...
+make test-integration
 
 # Run with verbose output
-go test -v ./tests/...
+make test-verbose
 
 # Run specific test
-go test -v ./tests/unit -run TestNewsService_GetNewsByID
+go test -v ./tests/unit -run TestAuthService_Register
 ```
 
 ## Test Features
@@ -76,25 +79,26 @@ go test -v ./tests/unit -run TestNewsService_GetNewsByID
 
 ### Test Helpers
 - `WithTransaction`: Database transaction wrapper
-- `WithTestServer`: HTTP test server setup
-- `CreateTestNews`, `CreateTestCity`: Test data fixtures
+- `CreateTestServer`: HTTP test server setup
+- `CreateTestUser`, `CreateTestExample`: Test data fixtures
+- `GenerateTestJWT`: Signed JWT for authenticated requests
 
 ## Example Test Pattern
 
 ```go
-func TestNewsService_GetNewsByID(t *testing.T) {
-    helpers.WithTransactionQueries(t, func(ctx context.Context, queries *db.Queries) {
+func TestExampleService_GetExample(t *testing.T) {
+    helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
         // Setup: Create test data
-        city := helpers.CreateTestCity(t, ctx, queries)
-        testNews := helpers.CreateTestNews(t, ctx, queries, city.ID)
-        
+        user := helpers.CreateTestUser(t, ctx, tx)
+        example := helpers.CreateTestExample(t, ctx, tx, user.ID)
+
         // Test: Execute business logic
-        service := news.NewNewsService(queries)
-        result, err := service.GetNewsByID(ctx, testNews.ID)
-        
+        service := example.NewExampleService(queries, nil)
+        result, err := service.GetExample(ctx, example.ID, user.ID)
+
         // Assert: Verify results
-        assert.NoError(t, err)
-        assert.Equal(t, testNews.Title, result.Title)
+        require.NoError(t, err)
+        assert.Equal(t, example.Title, result.Title)
     })
 }
 ```
@@ -103,7 +107,6 @@ func TestNewsService_GetNewsByID(t *testing.T) {
 
 The test suite uses environment variables for configuration:
 - `TEST_DATABASE_URL`: Connection string for test database
-- Falls back to default: `postgres://postgres:postgres@localhost:5432/smartcity_test?sslmode=disable`
 
 ## Benefits
 

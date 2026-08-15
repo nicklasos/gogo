@@ -1,5 +1,18 @@
 package auth
 
+// RegisterRequest represents the request structure for user registration
+type RegisterRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Name     string `json:"name" binding:"required"`
+	Password string `json:"password" binding:"required,min=6"`
+}
+
+// LoginRequest represents the request structure for user login
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+}
+
 // UserResponse represents user information
 type UserResponse struct {
 	ID    int32  `json:"id"`

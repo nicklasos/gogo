@@ -205,6 +205,18 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 //	@Failure		401	{object}	ErrorResponse
 //	@Router			/api/v1/auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		errs.RespondWithUnauthorized(c, "Unauthorized")
+		return
+	}
+
+	if err := h.service.Logout(c.Request.Context(), userID); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to logout", "error", err, "user_id", userID)
+		errs.RespondWithError(c, err)
+		return
+	}
+
 	var response MessageResponse
 	response.Data.Message = "Logged out successfully"
 	c.JSON(http.StatusOK, response)

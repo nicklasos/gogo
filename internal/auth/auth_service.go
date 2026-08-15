@@ -8,14 +8,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -29,19 +25,6 @@ type AuthService struct {
 type TokenPair struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
-}
-
-// RegisterRequest represents the request structure for user registration
-type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Name     string `json:"name" binding:"required"`
-	Password string `json:"password" binding:"required,min=6"`
-}
-
-// LoginRequest represents the request structure for user login
-type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
 }
 
 var (
@@ -75,17 +58,10 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*Token
 		Password: string(hashedPassword),
 	})
 	if err != nil {
-		// Map unique violations to a stable error
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+		if domainErr := errs.DomainErrorFromPostgresUniqueViolation(err); domainErr != nil {
 			return nil, nil, ErrUserAlreadyExists
 		}
-		// Fallback for driver/driver-text wrapped errors
-		msg := err.Error()
-		if strings.Contains(msg, "SQLSTATE 23505") || strings.Contains(msg, "duplicate key value") {
-			return nil, nil, ErrUserAlreadyExists
-		}
-		return nil, nil, fmt.Errorf("failed to create user: %w", err)
+		return nil, nil, errs.WrapDatabaseError(err)
 	}
 
 	// Generate token pair
@@ -150,11 +126,17 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*T
 }
 
 func (s *AuthService) generateTokenPair(ctx context.Context, user db.User) (*TokenPair, error) {
+	jtiBytes := make([]byte, 8)
+	if _, err := rand.Read(jtiBytes); err != nil {
+		return nil, fmt.Errorf("failed to generate token id: %w", err)
+	}
+
 	// Generate access token (7 days)
 	accessClaims := &middleware.Claims{
 		UserID: user.ID,
 		Email:  user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        hex.EncodeToString(jtiBytes),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -214,4 +196,12 @@ func (s *AuthService) GetUserFromContext(ctx context.Context, userID int32) (*db
 		return nil, ErrUserNotFound
 	}
 	return &user, nil
+}
+
+// Logout revokes all refresh tokens for the user
+func (s *AuthService) Logout(ctx context.Context, userID int32) error {
+	if err := s.queries.RevokeAllUserRefreshTokens(ctx, userID); err != nil {
+		return errs.WrapDatabaseError(err)
+	}
+	return nil
 }
