@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"time"
 
 	"app/config"
 	"app/docs"
@@ -112,7 +113,13 @@ func main() {
 	r.Use(custommiddleware.Recovery(logger))
 	// r.Use(custommiddleware.RequestLogging(logger))
 	r.Use(custommiddleware.ErrorHandler(logger))
-	r.Use(cors.Default())
+	r.Use(cors.New(cors.Config{
+		AllowAllOrigins: true,
+		AllowMethods:    []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+		AllowHeaders:    []string{"Origin", "Content-Length", "Content-Type", "Authorization", "Accept", "X-Request-ID"},
+		ExposeHeaders:   []string{"Content-Length"},
+		MaxAge:          12 * time.Hour,
+	}))
 
 	api := r.Group("/api/v1")
 
