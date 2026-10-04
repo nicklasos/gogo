@@ -30,12 +30,12 @@ func NewHandler(service *ExampleService, logger *logger.Logger) *Handler {
 //	@Tags			examples
 //	@Accept			json
 //	@Produce		json
-//	@Security		Bearer
+//	@Security		BearerAuth
 //	@Param			request	body		CreateExampleRequest	true	"Example details"
 //	@Success		200		{object}	ExampleDataResponse
-//	@Failure		400		{object}	ErrorResponse
-//	@Failure		401		{object}	ErrorResponse
-//	@Failure		500		{object}	ErrorResponse
+//	@Failure		400		{object}	errs.ErrorResponse
+//	@Failure		401		{object}	errs.ErrorResponse
+//	@Failure		500		{object}	errs.ErrorResponse
 //	@Router			/api/v1/examples [post]
 func (h *Handler) CreateExample(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
@@ -78,13 +78,13 @@ func (h *Handler) CreateExample(c *gin.Context) {
 //	@Tags			examples
 //	@Accept			json
 //	@Produce		json
-//	@Security		Bearer
+//	@Security		BearerAuth
 //	@Param			id	path		int	true	"Example ID"
 //	@Success		200	{object}	ExampleDataResponse
-//	@Failure		400	{object}	ErrorResponse
-//	@Failure		401	{object}	ErrorResponse
-//	@Failure		404	{object}	ErrorResponse
-//	@Failure		500	{object}	ErrorResponse
+//	@Failure		400	{object}	errs.ErrorResponse
+//	@Failure		401	{object}	errs.ErrorResponse
+//	@Failure		404	{object}	errs.ErrorResponse
+//	@Failure		500	{object}	errs.ErrorResponse
 //	@Router			/api/v1/examples/{id} [get]
 func (h *Handler) GetExample(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
@@ -127,13 +127,13 @@ func (h *Handler) GetExample(c *gin.Context) {
 //	@Tags			examples
 //	@Accept			json
 //	@Produce		json
-//	@Security		Bearer
+//	@Security		BearerAuth
 //	@Param			page		query		int		false	"Page number (default: 1)"					default(1)
 //	@Param			page_size	query		int		false	"Page size (default: 20, min: 1, max: 100)"	default(20)
 //	@Success		200			{object}	PaginatedExamplesResponse
-//	@Failure		400			{object}	ErrorResponse
-//	@Failure		401			{object}	ErrorResponse
-//	@Failure		500			{object}	ErrorResponse
+//	@Failure		400			{object}	errs.ErrorResponse
+//	@Failure		401			{object}	errs.ErrorResponse
+//	@Failure		500			{object}	errs.ErrorResponse
 //	@Router			/api/v1/examples [get]
 func (h *Handler) ListExamples(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
@@ -183,14 +183,14 @@ func (h *Handler) ListExamples(c *gin.Context) {
 //	@Tags			examples
 //	@Accept			json
 //	@Produce		json
-//	@Security		Bearer
+//	@Security		BearerAuth
 //	@Param			id		path		int					true	"Example ID"
 //	@Param			request	body		UpdateExampleRequest	true	"Example details"
 //	@Success		200		{object}	ExampleDataResponse
-//	@Failure		400		{object}	ErrorResponse
-//	@Failure		401		{object}	ErrorResponse
-//	@Failure		404		{object}	ErrorResponse
-//	@Failure		500		{object}	ErrorResponse
+//	@Failure		400		{object}	errs.ErrorResponse
+//	@Failure		401		{object}	errs.ErrorResponse
+//	@Failure		404		{object}	errs.ErrorResponse
+//	@Failure		500		{object}	errs.ErrorResponse
 //	@Router			/api/v1/examples/{id} [put]
 func (h *Handler) UpdateExample(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
@@ -238,13 +238,13 @@ func (h *Handler) UpdateExample(c *gin.Context) {
 //	@Tags			examples
 //	@Accept			json
 //	@Produce		json
-//	@Security		Bearer
+//	@Security		BearerAuth
 //	@Param			id	path		int	true	"Example ID"
 //	@Success		200	{object}	MessageResponse
-//	@Failure		400	{object}	ErrorResponse
-//	@Failure		401	{object}	ErrorResponse
-//	@Failure		404	{object}	ErrorResponse
-//	@Failure		500	{object}	ErrorResponse
+//	@Failure		400	{object}	errs.ErrorResponse
+//	@Failure		401	{object}	errs.ErrorResponse
+//	@Failure		404	{object}	errs.ErrorResponse
+//	@Failure		500	{object}	errs.ErrorResponse
 //	@Router			/api/v1/examples/{id} [delete]
 func (h *Handler) DeleteExample(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)

@@ -48,8 +48,3 @@ type MessageResponse struct {
 		Message string `json:"message"`
 	} `json:"data"`
 }
-
-// ErrorResponse represents error response structure
-type ErrorResponse struct {
-	Error string `json:"error"`
-}

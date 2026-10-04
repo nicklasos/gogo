@@ -25,13 +25,10 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Override database URL if using test database
 	if *useTestDB {
-		testDBURL := os.Getenv("TEST_DATABASE_URL")
-		if testDBURL == "" {
-			log.Fatal("TEST_DATABASE_URL environment variable is required when using --test-db flag")
+		if err := cfg.UseTestDatabase(); err != nil {
+			log.Fatal(err)
 		}
-		cfg.DatabaseURL = testDBURL
 		log.Println("Using TEST_DATABASE_URL for database connection")
 	}
 
@@ -41,7 +38,6 @@ func main() {
 		Format:    cfg.LogFormat,
 		Output:    cfg.LogOutput,
 		AddSource: cfg.Debug,
-		RequestID: false, // Not needed for cron jobs
 	})
 	if err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)

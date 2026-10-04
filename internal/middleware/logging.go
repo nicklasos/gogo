@@ -54,20 +54,36 @@ func RequestLogging(log *logger.Logger) gin.HandlerFunc {
 	}
 }
 
-// RequestID middleware adds request ID to context and response headers
-func RequestID(log *logger.Logger) gin.HandlerFunc {
+const requestIDHeader = "X-Request-ID"
+
+// RequestID puts a request ID on the request context (picked up by the logger) and the
+// response header. An inbound ID is reused only when it is safe to write into logs.
+func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Generate or extract request ID
-		requestID := c.Request.Header.Get("X-Request-ID")
-		if requestID == "" {
+		requestID := c.GetHeader(requestIDHeader)
+		if !isSafeRequestID(requestID) {
 			requestID = uuid.New().String()
 		}
 
-		// Add to response header
-		c.Header("X-Request-ID", requestID)
+		c.Request = c.Request.WithContext(logger.WithRequestID(c.Request.Context(), requestID))
+		c.Header(requestIDHeader, requestID)
 
 		c.Next()
 	}
+}
+
+func isSafeRequestID(id string) bool {
+	if id == "" || len(id) > 64 {
+		return false
+	}
+	for _, r := range id {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '.', r == '_', r == '-':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // ErrorHandler creates a middleware that handles errors and sends appropriate responses

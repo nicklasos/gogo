@@ -2,11 +2,6 @@ package internal
 
 import "math"
 
-// ErrorResponse represents a simple error response
-type ErrorResponse struct {
-	Error string `json:"error"`
-}
-
 // PaginationMeta contains pagination metadata
 type PaginationMeta struct {
 	Total       int64 `json:"total"`

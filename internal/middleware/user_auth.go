@@ -77,10 +77,11 @@ func ExtractUserIDFromJWT(c *gin.Context, verifier UserJWTVerifier) (*int32, err
 	return &claims.UserID, nil
 }
 
-// UserAuthMiddleware validates JWT token and sets user context
-func UserAuthMiddleware(verifier UserJWTVerifier) gin.HandlerFunc {
+// UserAuthMiddleware validates the JWT, then loads current roles from the database
+// onto the context. RequireRole reads those roles; do not trust JWT claims for them.
+func UserAuthMiddleware(auth UserAuth) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, err := ExtractUserIDFromJWT(c, verifier)
+		userID, err := ExtractUserIDFromJWT(c, auth)
 		if err != nil {
 			errs.RespondWithError(c, err)
 			c.Abort()
@@ -92,8 +93,18 @@ func UserAuthMiddleware(verifier UserJWTVerifier) gin.HandlerFunc {
 			return
 		}
 
-		// Set user context
+		roles, err := auth.GetUserRoles(c.Request.Context(), *userID)
+		if err != nil {
+			errs.RespondWithError(c, err)
+			c.Abort()
+			return
+		}
+		if roles == nil {
+			roles = []string{}
+		}
+
 		c.Set("user_id", *userID)
+		c.Set("user_roles", roles)
 
 		c.Next()
 	}
@@ -131,4 +142,16 @@ func GetUserIDFromContext(c *gin.Context) (int32, error) {
 	}
 
 	return userIDInt32, nil
+}
+
+// GetUserRolesFromContext returns roles loaded by UserAuthMiddleware.
+func GetUserRolesFromContext(c *gin.Context) []string {
+	roles, exists := c.Get("user_roles")
+	if !exists {
+		return nil
+	}
+	if list, ok := roles.([]string); ok {
+		return list
+	}
+	return nil
 }

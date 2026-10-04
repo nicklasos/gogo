@@ -30,7 +30,7 @@ tests/
    createdb gogo_test
    ```
 
-2. Set `TEST_DATABASE_URL` in `.env` (or export it):
+2. Set `TEST_DATABASE_URL` in `.env` (or export it). The database name must end in `_test` and the host must be local, otherwise the suite refuses to run (`ALLOW_REMOTE_TEST_DB=1` lifts the host check):
    ```bash
    export TEST_DATABASE_URL="postgres://postgres@localhost:5432/gogo_test?sslmode=disable"
    ```

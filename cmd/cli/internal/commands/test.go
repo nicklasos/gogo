@@ -12,7 +12,7 @@ import (
 func RunTest(app *internal.CLIApp, args []string) {
 	fs := flag.NewFlagSet("test", flag.ExitOnError)
 	fs.Usage = func() {
-		fmt.Println("Usage: go run cmd/cli test [options]")
+		fmt.Println("Usage: go run ./cmd/cli test [options]")
 		fmt.Println()
 		fmt.Println("Run various tests")
 		fmt.Println()
@@ -20,8 +20,8 @@ func RunTest(app *internal.CLIApp, args []string) {
 		fs.PrintDefaults()
 		fmt.Println()
 		fmt.Println("Examples:")
-		fmt.Println("  go run cmd/cli test")
-		fmt.Println("  go run cmd/cli --test test    # Use test database")
+		fmt.Println("  go run ./cmd/cli test")
+		fmt.Println("  go run ./cmd/cli --test test  # Use test database")
 	}
 
 	fs.Parse(args)

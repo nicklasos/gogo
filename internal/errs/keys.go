@@ -17,6 +17,14 @@ const (
 	ErrKeyAuthInvalidCredentials = "auth.invalid_credentials"
 	ErrKeyAuthTokenRequired      = "auth.token_required"
 	ErrKeyAuthUserExists         = "auth.user_exists"
+	ErrKeyAuthInvalidCurrentPass = "auth.invalid_current_password"
+)
+
+// Users error keys
+const (
+	ErrKeyUsersNotFound         = "users.not_found"
+	ErrKeyUsersForbiddenRole    = "users.forbidden_role"
+	ErrKeyUsersCannotDeleteSelf = "users.cannot_delete_self"
 )
 
 // Example error keys

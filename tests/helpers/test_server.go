@@ -13,13 +13,11 @@ import (
 
 	"app/config"
 	"app/internal"
-	"app/internal/auth"
 	"app/internal/cache"
 	"app/internal/db"
-	"app/internal/example"
 	"app/internal/logger"
 	custommiddleware "app/internal/middleware"
-	"app/internal/uploads"
+	"app/internal/server"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -64,8 +62,6 @@ func GenerateTestJWT(userID int32, email string) string {
 func CreateTestServer(t *testing.T, ctx context.Context, tx pgx.Tx, queries *db.Queries) *TestServer {
 	gin.SetMode(gin.TestMode)
 
-	router := gin.New()
-
 	testLogger, err := logger.New(logger.Config{
 		Level:  "debug",
 		Format: "text",
@@ -75,35 +71,28 @@ func CreateTestServer(t *testing.T, ctx context.Context, tx pgx.Tx, queries *db.
 		t.Fatalf("Failed to create test logger: %v", err)
 	}
 
-	router.Use(custommiddleware.Recovery(testLogger))
-	router.Use(custommiddleware.ErrorHandler(testLogger))
-
 	testConfig := &config.Config{
 		UploadFolder: t.TempDir(),
 		FilesBaseURL: "http://localhost:8181/api/files",
 		JWTSecret:    TestJWTSecret,
 	}
 
-	memCache := cache.NewMemoryCache()
+	router := server.NewEngine(testConfig, testLogger)
 
 	app := &internal.App{
 		Config:  testConfig,
 		Queries: queries,
-		Cache:   memCache,
+		Tx:      db.NewTxRunner(tx, queries),
+		Cache:   cache.NewMemoryCache(),
 		Logger:  testLogger,
 		Api:     router.Group("/api/v1"),
 		Images:  internal.NewImageService(testConfig.FilesBaseURL),
 	}
 
-	authService := auth.RegisterRoutes(app)
-	example.RegisterRoutes(app, authService)
-	uploads.RegisterRoutes(app, authService)
-	uploads.RegisterPublicRoutes(router, app)
-
-	server := httptest.NewServer(router)
+	server.RegisterRoutes(router, app)
 
 	return &TestServer{
-		server: server,
+		server: httptest.NewServer(router),
 		router: router,
 	}
 }

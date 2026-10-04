@@ -30,7 +30,7 @@ func NewHandler(service *UploadService, logger *logger.Logger) *Handler {
 //	@Tags			uploads
 //	@Accept			multipart/form-data
 //	@Produce		json
-//	@Security		Bearer
+//	@Security		BearerAuth
 //	@Param			file	formData	file				true	"File to upload"
 //	@Success		200		{object}	UploadDataResponse
 //	@Failure		400		{object}	map[string]interface{}
@@ -83,7 +83,7 @@ func (h *Handler) UploadFile(c *gin.Context) {
 //	@Description	Get an upload by ID
 //	@Tags			uploads
 //	@Produce		json
-//	@Security		Bearer
+//	@Security		BearerAuth
 //	@Param			id	path		int	true	"Upload ID"
 //	@Success		200	{object}	UploadDataResponse
 //	@Failure		401	{object}	map[string]interface{}
@@ -132,7 +132,7 @@ func (h *Handler) GetUpload(c *gin.Context) {
 //	@Description	List all uploads for the authenticated user
 //	@Tags			uploads
 //	@Produce		json
-//	@Security		Bearer
+//	@Security		BearerAuth
 //	@Success		200	{object}	UploadsListResponse
 //	@Failure		401	{object}	map[string]interface{}
 //	@Router			/api/v1/uploads [get]
@@ -178,7 +178,7 @@ func (h *Handler) ListUploads(c *gin.Context) {
 //	@Description	Delete an upload by ID
 //	@Tags			uploads
 //	@Produce		json
-//	@Security		Bearer
+//	@Security		BearerAuth
 //	@Param			id	path		int	true	"Upload ID"
 //	@Success		200	{object}	MessageResponse
 //	@Failure		401	{object}	map[string]interface{}

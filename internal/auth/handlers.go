@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"app/internal/db"
 	"app/internal/errs"
 	"app/internal/logger"
 	"app/internal/middleware"
@@ -22,6 +23,19 @@ func NewAuthHandler(service *AuthService, logger *logger.Logger) *AuthHandler {
 	}
 }
 
+func userResponseFromDB(user *db.User) UserResponse {
+	roles := user.Roles
+	if roles == nil {
+		roles = []string{}
+	}
+	return UserResponse{
+		ID:    user.ID,
+		Email: user.Email,
+		Name:  user.Name,
+		Roles: roles,
+	}
+}
+
 // Register creates a new user account
 //	@Summary		Register new user
 //	@Description	Create a new user account with email and password
@@ -30,8 +44,8 @@ func NewAuthHandler(service *AuthService, logger *logger.Logger) *AuthHandler {
 //	@Produce		json
 //	@Param			request	body		RegisterRequest	true	"Registration request"
 //	@Success		200		{object}	RegisterDataResponse
-//	@Failure		400		{object}	ErrorResponse
-//	@Failure		500		{object}	ErrorResponse
+//	@Failure		400		{object}	errs.ErrorResponse
+//	@Failure		500		{object}	errs.ErrorResponse
 //	@Router			/api/v1/auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
@@ -45,23 +59,14 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to register user", "error", err, "email", req.Email)
 
-		switch err {
-		case ErrUserAlreadyExists:
-			errs.RespondWithError(c, err)
-		default:
-			errs.RespondWithError(c, err)
-		}
+		errs.RespondWithError(c, err)
 		return
 	}
 
 	response := RegisterResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
-		User: UserResponse{
-			ID:    user.ID,
-			Email: user.Email,
-			Name:  user.Name,
-		},
+		User:         userResponseFromDB(user),
 	}
 
 	c.JSON(http.StatusOK, RegisterDataResponse{Data: response})
@@ -75,9 +80,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 //	@Produce		json
 //	@Param			request	body		LoginRequest	true	"Login request"
 //	@Success		200		{object}	LoginDataResponse
-//	@Failure		400		{object}	ErrorResponse
-//	@Failure		401		{object}	ErrorResponse
-//	@Failure		500		{object}	ErrorResponse
+//	@Failure		400		{object}	errs.ErrorResponse
+//	@Failure		401		{object}	errs.ErrorResponse
+//	@Failure		500		{object}	errs.ErrorResponse
 //	@Router			/api/v1/auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
@@ -91,23 +96,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to login", "error", err, "email", req.Email)
 
-		switch err {
-		case ErrInvalidCredentials:
-			errs.RespondWithError(c, err)
-		default:
-			errs.RespondWithError(c, err)
-		}
+		errs.RespondWithError(c, err)
 		return
 	}
 
 	response := LoginResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
-		User: UserResponse{
-			ID:    user.ID,
-			Email: user.Email,
-			Name:  user.Name,
-		},
+		User:         userResponseFromDB(user),
 	}
 
 	c.JSON(http.StatusOK, LoginDataResponse{Data: response})
@@ -121,9 +117,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 //	@Produce		json
 //	@Param			request	body		RefreshTokenRequest	true	"Refresh token request"
 //	@Success		200		{object}	RefreshTokenDataResponse
-//	@Failure		400		{object}	ErrorResponse
-//	@Failure		401		{object}	ErrorResponse
-//	@Failure		500		{object}	ErrorResponse
+//	@Failure		400		{object}	errs.ErrorResponse
+//	@Failure		401		{object}	errs.ErrorResponse
+//	@Failure		500		{object}	errs.ErrorResponse
 //	@Router			/api/v1/auth/refresh [post]
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req RefreshTokenRequest
@@ -137,14 +133,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	if err != nil {
 		h.logger.ErrorContext(c.Request.Context(), "Failed to refresh token", "error", err)
 
-		switch err {
-		case ErrInvalidToken:
-			errs.RespondWithError(c, err)
-		case ErrUserNotFound:
-			errs.RespondWithError(c, err)
-		default:
-			errs.RespondWithError(c, err)
-		}
+		errs.RespondWithError(c, err)
 		return
 	}
 
@@ -162,10 +151,10 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 //	@Tags			auth
 //	@Accept			json
 //	@Produce		json
-//	@Security		Bearer
+//	@Security		BearerAuth
 //	@Success		200	{object}	UserDataResponse
-//	@Failure		401	{object}	ErrorResponse
-//	@Failure		500	{object}	ErrorResponse
+//	@Failure		401	{object}	errs.ErrorResponse
+//	@Failure		500	{object}	errs.ErrorResponse
 //	@Router			/api/v1/auth/me [get]
 func (h *AuthHandler) GetMe(c *gin.Context) {
 	userIDInt32, err := middleware.GetUserIDFromContext(c)
@@ -185,13 +174,80 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 		return
 	}
 
-	response := UserResponse{
-		ID:    user.ID,
-		Email: user.Email,
-		Name:  user.Name,
+	c.JSON(http.StatusOK, UserDataResponse{Data: userResponseFromDB(user)})
+}
+
+// UpdateMe updates the current authenticated user's name and email
+//	@Summary		Update current user
+//	@Description	Update name and email for the currently authenticated user
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			request	body		UpdateProfileRequest	true	"Profile update"
+//	@Success		200		{object}	UserDataResponse
+//	@Failure		400		{object}	errs.ErrorResponse
+//	@Failure		401		{object}	errs.ErrorResponse
+//	@Failure		500		{object}	errs.ErrorResponse
+//	@Router			/api/v1/auth/me [put]
+func (h *AuthHandler) UpdateMe(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		errs.RespondWithUnauthorized(c, "Unauthorized")
+		return
 	}
 
-	c.JSON(http.StatusOK, UserDataResponse{Data: response})
+	var req UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errs.RespondWithValidationError(c, err)
+		return
+	}
+
+	user, err := h.service.UpdateProfile(c.Request.Context(), userID, req.Email, req.Name)
+	if err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to update profile", "error", err, "user_id", userID)
+		errs.RespondWithError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, UserDataResponse{Data: userResponseFromDB(user)})
+}
+
+// UpdatePassword updates the current authenticated user's password
+//	@Summary		Change current user password
+//	@Description	Change password for the currently authenticated user. Revokes all refresh tokens.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			request	body		UpdatePasswordRequest	true	"Password change"
+//	@Success		200		{object}	MessageResponse
+//	@Failure		400		{object}	errs.ErrorResponse
+//	@Failure		401		{object}	errs.ErrorResponse
+//	@Failure		500		{object}	errs.ErrorResponse
+//	@Router			/api/v1/auth/me/password [put]
+func (h *AuthHandler) UpdatePassword(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		errs.RespondWithUnauthorized(c, "Unauthorized")
+		return
+	}
+
+	var req UpdatePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errs.RespondWithValidationError(c, err)
+		return
+	}
+
+	if err := h.service.UpdatePassword(c.Request.Context(), userID, req.CurrentPassword, req.NewPassword); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to update password", "error", err, "user_id", userID)
+		errs.RespondWithError(c, err)
+		return
+	}
+
+	var response MessageResponse
+	response.Data.Message = "Password updated successfully"
+	c.JSON(http.StatusOK, response)
 }
 
 // Logout logs out the current user
@@ -200,9 +256,9 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 //	@Tags			auth
 //	@Accept			json
 //	@Produce		json
-//	@Security		Bearer
+//	@Security		BearerAuth
 //	@Success		200	{object}	MessageResponse
-//	@Failure		401	{object}	ErrorResponse
+//	@Failure		401	{object}	errs.ErrorResponse
 //	@Router			/api/v1/auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)

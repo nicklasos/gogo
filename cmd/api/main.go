@@ -1,26 +1,26 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"app/config"
 	"app/docs"
 	"app/internal"
-	"app/internal/auth"
 	"app/internal/cache"
 	"app/internal/db"
-	"app/internal/example"
 	"app/internal/logger"
-	custommiddleware "app/internal/middleware"
 	"app/internal/redis"
 	"app/internal/scheduler"
-	"app/internal/uploads"
+	"app/internal/server"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -58,16 +58,18 @@ func main() {
 	}
 
 	if *useTestDB {
-		testDBURL := os.Getenv("TEST_DATABASE_URL")
-		if testDBURL == "" {
-			log.Fatal("TEST_DATABASE_URL environment variable is required when using --test-db flag")
+		if err := cfg.UseTestDatabase(); err != nil {
+			log.Fatal(err)
 		}
-		cfg.DatabaseURL = testDBURL
 		log.Println("Using TEST_DATABASE_URL for database connection")
 	}
 
 	if *port != "" {
 		cfg.Port = *port
+	}
+
+	if cfg.JWTSecret == "" {
+		log.Fatal("JWT_SECRET environment variable is required")
 	}
 
 	logger, err := logger.New(logger.Config{
@@ -104,32 +106,16 @@ func main() {
 	}
 	defer redisClient.Close()
 
-	cacheService := cache.NewRedisCache(redisClient, cfg.AppName+":")
-
-	r := gin.New()
-	r.RedirectTrailingSlash = false
-
-	r.Use(custommiddleware.RequestID(logger))
-	r.Use(custommiddleware.Recovery(logger))
-	// r.Use(custommiddleware.RequestLogging(logger))
-	r.Use(custommiddleware.ErrorHandler(logger))
-	r.Use(cors.New(cors.Config{
-		AllowAllOrigins: true,
-		AllowMethods:    []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
-		AllowHeaders:    []string{"Origin", "Content-Length", "Content-Type", "Authorization", "Accept", "X-Request-ID"},
-		ExposeHeaders:   []string{"Content-Length"},
-		MaxAge:          12 * time.Hour,
-	}))
-
-	api := r.Group("/api/v1")
+	r := server.NewEngine(cfg, logger)
 
 	app := &internal.App{
 		Config:  cfg,
 		DB:      database,
 		Queries: queries,
-		Cache:   cacheService,
+		Tx:      db.NewTxRunner(database, queries),
+		Cache:   cache.NewRedisCache(redisClient, cfg.AppName+":"),
 		Logger:  logger,
-		Api:     api,
+		Api:     r.Group("/api/v1"),
 		Images:  internal.NewImageService(cfg.FilesBaseURL),
 	}
 
@@ -152,44 +138,36 @@ func main() {
 		defer cronScheduler.Stop()
 	}
 
-	if cfg.JWTSecret == "" {
-		logger.Error("JWT_SECRET is required")
-		log.Fatal("JWT_SECRET environment variable is required")
-	}
-
-	authService := auth.RegisterRoutes(app)
-	example.RegisterRoutes(app, authService)
-	uploads.RegisterRoutes(app, authService)
-	uploads.RegisterPublicRoutes(r, app)
-
-	// Healthcheck (DB ping)
-	healthHandler := func(c *gin.Context) {
-		if err := app.Queries.Healthcheck(c.Request.Context()); err != nil {
-			c.JSON(503, gin.H{
-				"status":  "unhealthy",
-				"app":     cfg.AppName,
-				"version": cfg.AppVersion,
-				"env":     cfg.Environment,
-			})
-			return
-		}
-		c.JSON(200, gin.H{
-			"status":  "healthy",
-			"app":     cfg.AppName,
-			"version": cfg.AppVersion,
-			"env":     cfg.Environment,
-		})
-	}
-	r.Match([]string{"GET", "HEAD"}, "/health", healthHandler)
-	api.Match([]string{"GET", "HEAD"}, "/health", healthHandler)
+	server.RegisterRoutes(r, app)
 
 	docs.SwaggerInfo.Host = cfg.AppURL
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	address := ":" + cfg.Port
-	logger.Info("Server starting", "address", address)
-	if err := r.Run(address); err != nil {
-		logger.Error("Server failed to start", "error", err, "address", address)
-		log.Fatal(err)
+	srv := &http.Server{
+		Addr:              address,
+		Handler:           r.Handler(),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	go func() {
+		logger.Info("Server starting", "address", address)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("Server failed to start", "error", err, "address", address)
+			log.Fatal(err)
+		}
+	}()
+
+	// Without this a stop signal kills the process at once: in-flight requests are cut off
+	// and the deferred scheduler stop and connection closes never run.
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.Info("Shutdown signal received")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		logger.Error("Server shutdown did not complete cleanly", "error", err)
 	}
 }

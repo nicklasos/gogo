@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
 // Config holds all application configuration
 type Config struct {
-	// Hardcoded constants
 	AppName    string
 	AppVersion string
 
@@ -29,6 +29,9 @@ type Config struct {
 	FilesBaseURL    string
 	UploadFolder    string
 
+	// CORSAllowedOrigins is empty (or contains "*") to allow any origin
+	CORSAllowedOrigins []string
+
 	// Scheduler configuration
 	EnableScheduler bool
 }
@@ -39,8 +42,7 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	return &Config{
-		// Hardcoded values
-		AppName:    "MyApp",
+		AppName:    getEnv("APP_NAME", "MyApp"),
 		AppVersion: "1.0.0",
 
 		// Environment variables with defaults
@@ -57,6 +59,8 @@ func Load() (*Config, error) {
 		AppURL:          getEnv("APP_URL", "localhost:8181"),
 		FilesBaseURL:    getEnv("FILES_BASE_URL", fmt.Sprintf("http://localhost:%s/api/files", getEnv("PORT", "8181"))),
 		UploadFolder:    getEnv("UPLOAD_FOLDER", "./uploads"),
+
+		CORSAllowedOrigins: getEnvList("CORS_ALLOWED_ORIGINS"),
 
 		// Scheduler configuration
 		EnableScheduler: getEnvBool("ENABLE_SCHEDULER", true),
@@ -78,4 +82,14 @@ func getEnvBool(key string, defaultValue bool) bool {
 		}
 	}
 	return defaultValue
+}
+
+func getEnvList(key string) []string {
+	var values []string
+	for _, item := range strings.Split(os.Getenv(key), ",") {
+		if item = strings.TrimSpace(item); item != "" {
+			values = append(values, item)
+		}
+	}
+	return values
 }

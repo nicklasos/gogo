@@ -15,8 +15,12 @@ type App struct {
 	Config  *config.Config
 	DB      *pgxpool.Pool
 	Queries *db.Queries
+	Tx      *db.TxRunner
 	Cache   cache.Cache
 	Logger  *logger.Logger
 	Api     *gin.RouterGroup
 	Images  *ImageService
+
+	// AuthMiddleware is set by auth.RegisterRoutes; modules registered after it use it to protect routes
+	AuthMiddleware gin.HandlerFunc
 }

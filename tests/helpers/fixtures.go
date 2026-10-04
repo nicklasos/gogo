@@ -77,6 +77,24 @@ func CreateTestUserWithEmail(t *testing.T, ctx context.Context, tx pgx.Tx, email
 	return user
 }
 
+// CreateTestUserWithRoles creates a test user with explicit roles
+func CreateTestUserWithRoles(t *testing.T, ctx context.Context, tx pgx.Tx, roles ...string) *db.User {
+	email := fmt.Sprintf("test%d@example.com", time.Now().UnixNano())
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
+	require.NoError(t, err, "Failed to hash password")
+
+	var user db.User
+	row := tx.QueryRow(ctx,
+		"INSERT INTO users (email, name, password, roles) VALUES ($1, $2, $3, $4) RETURNING id, email, name, password, roles, created_at, updated_at",
+		email, "Test User", string(hashedPassword), roles)
+
+	err = row.Scan(&user.ID, &user.Email, &user.Name, &user.Password, &user.Roles, &user.CreatedAt, &user.UpdatedAt)
+	require.NoError(t, err, "Failed to create test user")
+
+	return &user
+}
+
 // CreateTestExample creates a test example and returns it
 func CreateTestExample(t *testing.T, ctx context.Context, tx pgx.Tx, userID int32) *db.Example {
 	now := pgtype.Timestamp{Time: time.Now(), Valid: true}

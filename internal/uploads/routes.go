@@ -2,20 +2,19 @@ package uploads
 
 import (
 	"app/internal"
-	"app/internal/middleware"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterRoutes registers authenticated upload API routes
-func RegisterRoutes(app *internal.App, authService middleware.UserJWTVerifier) {
+func RegisterRoutes(app *internal.App) {
 	config := DefaultUploadConfig(app.Config.UploadFolder, app.Config.FilesBaseURL)
 	service := NewUploadService(app.Queries, config)
 	handler := NewHandler(service, app.Logger)
 
 	uploads := app.Api.Group("/uploads")
-	uploads.Use(middleware.UserAuthMiddleware(authService))
+	uploads.Use(app.AuthMiddleware)
 	{
 		uploads.POST("", handler.UploadFile)
 		uploads.GET("", handler.ListUploads)

@@ -3,8 +3,11 @@ package integration
 import (
 	"app/internal/auth"
 	"app/internal/db"
+	"app/internal/errs"
+	"app/internal/middleware"
 	"app/tests/helpers"
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -43,6 +46,7 @@ func TestAuthAPI_Register(t *testing.T) {
 			assert.NotNil(t, response.Data.User)
 			assert.Equal(t, "newuser@example.com", response.Data.User.Email)
 			assert.Equal(t, "New User", response.Data.User.Name)
+			assert.Equal(t, []string{middleware.RoleUser}, response.Data.User.Roles)
 			assert.True(t, response.Data.User.ID > 0)
 		})
 	})
@@ -324,5 +328,149 @@ func TestAuthAPI_GetMe(t *testing.T) {
 			// Assert: Check response status
 			assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 		})
+	})
+}
+
+func TestAuthAPI_GetMe_Roles(t *testing.T) {
+	helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
+		server := helpers.CreateTestServer(t, ctx, tx, queries)
+		defer server.Close()
+
+		user := helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleSuperAdmin)
+		token := helpers.GenerateTestJWT(user.ID, user.Email)
+
+		resp := server.GETAuth("/api/v1/auth/me", token)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response auth.UserDataResponse
+		require.NoError(t, resp.JSON(&response))
+		assert.Equal(t, []string{middleware.RoleSuperAdmin}, response.Data.Roles)
+	})
+}
+
+func TestAuthAPI_UpdateMe(t *testing.T) {
+	t.Run("should update name and email", func(t *testing.T) {
+		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
+			server := helpers.CreateTestServer(t, ctx, tx, queries)
+			defer server.Close()
+
+			user := helpers.CreateTestUser(t, ctx, tx)
+			token := helpers.GenerateTestJWT(user.ID, user.Email)
+
+			resp := server.PUTAuth("/api/v1/auth/me", `{"email": "updated@example.com", "name": "Updated"}`, token)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+			var response auth.UserDataResponse
+			require.NoError(t, resp.JSON(&response))
+			assert.Equal(t, "updated@example.com", response.Data.Email)
+			assert.Equal(t, "Updated", response.Data.Name)
+		})
+	})
+
+	t.Run("should return 400 when email is taken", func(t *testing.T) {
+		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
+			server := helpers.CreateTestServer(t, ctx, tx, queries)
+			defer server.Close()
+
+			other := helpers.CreateTestUserWithEmail(t, ctx, tx, "taken@example.com")
+			user := helpers.CreateTestUser(t, ctx, tx)
+			token := helpers.GenerateTestJWT(user.ID, user.Email)
+
+			resp := server.PUTAuth("/api/v1/auth/me", fmt.Sprintf(`{"email": %q, "name": "Updated"}`, other.Email), token)
+			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+			var body errs.ErrorResponse
+			require.NoError(t, resp.JSON(&body))
+			assert.Equal(t, errs.ErrKeyAuthUserExists, body.ErrorKey)
+		})
+	})
+
+	t.Run("should return 401 when not authenticated", func(t *testing.T) {
+		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
+			server := helpers.CreateTestServer(t, ctx, tx, queries)
+			defer server.Close()
+
+			resp := server.PUT("/api/v1/auth/me", `{"email": "x@example.com", "name": "X"}`)
+			assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		})
+	})
+}
+
+func TestAuthAPI_UpdatePassword(t *testing.T) {
+	t.Run("should change the password and revoke refresh tokens", func(t *testing.T) {
+		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
+			server := helpers.CreateTestServer(t, ctx, tx, queries)
+			defer server.Close()
+
+			user := helpers.CreateTestUser(t, ctx, tx)
+			login := func(password string) *helpers.TestResponse {
+				return server.POST("/api/v1/auth/login", fmt.Sprintf(`{"email": %q, "password": %q}`, user.Email, password))
+			}
+
+			var session auth.LoginDataResponse
+			require.NoError(t, login("password123").JSON(&session))
+
+			resp := server.PUTAuth("/api/v1/auth/me/password", `{"current_password": "password123", "new_password": "new-password-1"}`, session.Data.AccessToken)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+			assert.Equal(t, http.StatusUnauthorized, login("password123").StatusCode)
+			assert.Equal(t, http.StatusOK, login("new-password-1").StatusCode)
+
+			refresh := server.POST("/api/v1/auth/refresh", fmt.Sprintf(`{"refresh_token": %q}`, session.Data.RefreshToken))
+			assert.Equal(t, http.StatusUnauthorized, refresh.StatusCode)
+		})
+	})
+
+	t.Run("should return 400, not 401, when the current password is wrong", func(t *testing.T) {
+		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
+			server := helpers.CreateTestServer(t, ctx, tx, queries)
+			defer server.Close()
+
+			user := helpers.CreateTestUser(t, ctx, tx)
+			token := helpers.GenerateTestJWT(user.ID, user.Email)
+
+			resp := server.PUTAuth("/api/v1/auth/me/password", `{"current_password": "wrong", "new_password": "new-password-1"}`, token)
+			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+			var body errs.ErrorResponse
+			require.NoError(t, resp.JSON(&body))
+			assert.Equal(t, errs.ErrKeyAuthInvalidCurrentPass, body.ErrorKey)
+		})
+	})
+}
+
+func TestAuthAPI_RefreshTokenIsSingleUse(t *testing.T) {
+	helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
+		server := helpers.CreateTestServer(t, ctx, tx, queries)
+		defer server.Close()
+
+		user := helpers.CreateTestUser(t, ctx, tx)
+
+		var session auth.LoginDataResponse
+		resp := server.POST("/api/v1/auth/login", fmt.Sprintf(`{"email": %q, "password": "password123"}`, user.Email))
+		require.NoError(t, resp.JSON(&session))
+
+		body := fmt.Sprintf(`{"refresh_token": %q}`, session.Data.RefreshToken)
+		assert.Equal(t, http.StatusOK, server.POST("/api/v1/auth/refresh", body).StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, server.POST("/api/v1/auth/refresh", body).StatusCode)
+	})
+}
+
+func TestRequestID(t *testing.T) {
+	helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
+		server := helpers.CreateTestServer(t, ctx, tx, queries)
+		defer server.Close()
+
+		assert.NotEmpty(t, server.GET("/health").Header.Get("X-Request-ID"))
+
+		req := server.NewRequest(http.MethodGet, "/health", nil)
+		req.Header.Set("X-Request-ID", "abc-123_ok.1")
+		assert.Equal(t, "abc-123_ok.1", server.Do(req).Header.Get("X-Request-ID"))
+
+		req = server.NewRequest(http.MethodGet, "/health", nil)
+		req.Header.Set("X-Request-ID", "bad value\twith spaces")
+		got := server.Do(req).Header.Get("X-Request-ID")
+		assert.NotEmpty(t, got)
+		assert.NotEqual(t, "bad value\twith spaces", got)
 	})
 }

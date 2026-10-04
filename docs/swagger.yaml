@@ -1,5 +1,19 @@
 basePath: /
 definitions:
+  app_internal_errs.ErrorResponse:
+    properties:
+      details:
+        additionalProperties: true
+        type: object
+      error_key:
+        type: string
+      message:
+        type: string
+      status:
+        type: integer
+      timestamp:
+        type: string
+    type: object
   internal.PaginationMeta:
     properties:
       current_page:
@@ -10,11 +24,6 @@ definitions:
         type: integer
       total:
         type: integer
-    type: object
-  internal_auth.ErrorResponse:
-    properties:
-      error:
-        type: string
     type: object
   internal_auth.LoginDataResponse:
     properties:
@@ -95,6 +104,27 @@ definitions:
       user:
         $ref: '#/definitions/internal_auth.UserResponse'
     type: object
+  internal_auth.UpdatePasswordRequest:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        minLength: 8
+        type: string
+    required:
+    - current_password
+    - new_password
+    type: object
+  internal_auth.UpdateProfileRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+    required:
+    - email
+    - name
+    type: object
   internal_auth.UserDataResponse:
     properties:
       data:
@@ -108,6 +138,10 @@ definitions:
         type: integer
       name:
         type: string
+      roles:
+        items:
+          type: string
+        type: array
     type: object
   internal_example.CreateExampleRequest:
     properties:
@@ -117,11 +151,6 @@ definitions:
         type: string
     required:
     - title
-    type: object
-  internal_example.ErrorResponse:
-    properties:
-      error:
-        type: string
     type: object
   internal_example.ExampleDataResponse:
     properties:
@@ -169,6 +198,129 @@ definitions:
     required:
     - title
     type: object
+  internal_uploads.MessageResponse:
+    properties:
+      data:
+        properties:
+          message:
+            type: string
+        type: object
+    type: object
+  internal_uploads.UploadDataResponse:
+    properties:
+      data:
+        $ref: '#/definitions/internal_uploads.UploadResponse'
+    type: object
+  internal_uploads.UploadResponse:
+    properties:
+      created_at:
+        type: string
+      file_size:
+        type: integer
+      folder_id:
+        type: integer
+      full_url:
+        type: string
+      id:
+        type: integer
+      mime_type:
+        type: string
+      original_filename:
+        type: string
+      relative_path:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  internal_uploads.UploadsListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/internal_uploads.UploadResponse'
+        type: array
+    type: object
+  internal_users.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      role:
+        enum:
+        - super-admin
+        - admin
+        - user
+        type: string
+    required:
+    - email
+    - name
+    - password
+    - role
+    type: object
+  internal_users.MessageResponse:
+    properties:
+      data:
+        properties:
+          message:
+            type: string
+        type: object
+    type: object
+  internal_users.PaginatedUsersResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/internal_users.UserResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/internal.PaginationMeta'
+    type: object
+  internal_users.SetPasswordRequest:
+    properties:
+      password:
+        minLength: 8
+        type: string
+    required:
+    - password
+    type: object
+  internal_users.UpdateUserRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+    required:
+    - email
+    - name
+    type: object
+  internal_users.UserDataResponse:
+    properties:
+      data:
+        $ref: '#/definitions/internal_users.UserResponse'
+    type: object
+  internal_users.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      roles:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+    type: object
 host: localhost:8181
 info:
   contact:
@@ -205,15 +357,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_auth.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_auth.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_auth.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       summary: Login user
       tags:
       - auth
@@ -232,9 +384,9 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_auth.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Logout user
       tags:
       - auth
@@ -253,14 +405,86 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_auth.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_auth.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Get current user info
+      tags:
+      - auth
+    put:
+      consumes:
+      - application/json
+      description: Update name and email for the currently authenticated user
+      parameters:
+      - description: Profile update
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.UserDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update current user
+      tags:
+      - auth
+  /api/v1/auth/me/password:
+    put:
+      consumes:
+      - application/json
+      description: Change password for the currently authenticated user. Revokes all
+        refresh tokens.
+      parameters:
+      - description: Password change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.UpdatePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Change current user password
       tags:
       - auth
   /api/v1/auth/refresh:
@@ -285,15 +509,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_auth.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_auth.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_auth.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       summary: Refresh access token
       tags:
       - auth
@@ -319,11 +543,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_auth.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_auth.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       summary: Register new user
       tags:
       - auth
@@ -353,17 +577,17 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: List examples (paginated)
       tags:
       - examples
@@ -388,17 +612,17 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Create example
       tags:
       - examples
@@ -423,21 +647,21 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Delete example
       tags:
       - examples
@@ -461,21 +685,21 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Get example
       tags:
       - examples
@@ -505,24 +729,377 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_example.ErrorResponse'
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Update example
       tags:
       - examples
+  /api/v1/uploads:
+    get:
+      description: List all uploads for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_uploads.UploadsListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List uploads
+      tags:
+      - uploads
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a file for the authenticated user
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_uploads.UploadDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload file
+      tags:
+      - uploads
+  /api/v1/uploads/{id}:
+    delete:
+      description: Delete an upload by ID
+      parameters:
+      - description: Upload ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_uploads.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete upload
+      tags:
+      - uploads
+    get:
+      description: Get an upload by ID
+      parameters:
+      - description: Upload ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_uploads.UploadDataResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get upload
+      tags:
+      - uploads
+  /api/v1/users:
+    get:
+      consumes:
+      - application/json
+      description: Paginated list of users with the given role. Admins may only list
+        role "user"; super admins may list any role.
+      parameters:
+      - default: user
+        description: Role to list
+        enum:
+        - super-admin
+        - admin
+        - user
+        in: query
+        name: role
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_users.PaginatedUsersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List users by role
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      description: Create a user with one role. Admins may only create role "user";
+        super admins may create any role.
+      parameters:
+      - description: User details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_users.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_users.UserDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create user
+      tags:
+      - users
+  /api/v1/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a user the caller is allowed to manage. Cannot delete yourself.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_users.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete user
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update name and email of a user the caller is allowed to manage
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: User details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_users.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_users.UserDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update user
+      tags:
+      - users
+  /api/v1/users/{id}/set-password:
+    post:
+      consumes:
+      - application/json
+      description: Set a new password for a user the caller is allowed to manage.
+        Revokes the user's refresh tokens.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_users.SetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_users.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Set user password
+      tags:
+      - users
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

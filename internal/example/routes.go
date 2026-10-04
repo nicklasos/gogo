@@ -2,15 +2,14 @@ package example
 
 import (
 	"app/internal"
-	"app/internal/middleware"
 )
 
-func RegisterRoutes(app *internal.App, authService middleware.UserJWTVerifier) {
+func RegisterRoutes(app *internal.App) {
 	service := NewExampleService(app.Queries, app.Cache)
 	handler := NewHandler(service, app.Logger)
 
 	examples := app.Api.Group("/examples")
-	examples.Use(middleware.UserAuthMiddleware(authService))
+	examples.Use(app.AuthMiddleware)
 	{
 		examples.POST("", handler.CreateExample)
 		examples.GET("", handler.ListExamples)

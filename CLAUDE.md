@@ -13,21 +13,31 @@
 gogo/
 ├── cmd/api/main.go              # Main application entry (--port, --test-db)
 ├── cmd/cron/main.go             # Standalone scheduler
-├── cmd/cli/main.go              # CLI (migrate, smoke tests)
+├── cmd/cli/main.go              # CLI (migrate, create-user, smoke test); global --test flag
+├── config/
+│   ├── config.go                # Env → Config
+│   └── testdb.go                # Test-database safety guard
 ├── internal/
-│   ├── app.go                   # App context with DB, Cache, Logger, Images
+│   ├── app.go                   # App context with DB, Tx, Cache, Logger, Images, AuthMiddleware
+│   ├── server/server.go         # NewEngine (middleware) + RegisterRoutes (the module list)
 │   ├── images.go                # Relative path → public URL helper
 │   ├── auth/                    # Authentication module
 │   │   ├── auth_service.go      # Business logic
 │   │   ├── handlers.go          # HTTP handlers
-│   │   ├── routes.go            # Route registration (returns *AuthService)
+│   │   ├── routes.go            # Route registration (sets app.AuthMiddleware)
 │   │   └── types.go             # Request/response types
+│   ├── users/                   # User management (super admins, admins, users)
 │   ├── example/                 # Example CRUD module (cache demo)
 │   ├── uploads/                 # File uploads + public static route
+│   ├── health/                  # /health and /api/v1/health
 │   ├── db/
+│   │   ├── tx.go                # TxRunner.WithTx transaction helper
 │   │   └── queries/             # SQL queries (incl. technical Healthcheck)
 │   ├── middleware/
-│   │   ├── user_auth.go         # JWT authentication
+│   │   ├── user_auth.go         # JWT authentication, loads roles from DB
+│   │   ├── require_role.go      # Roles + RequireRole / RequireAnyRole
+│   │   ├── cors.go              # CORS from CORS_ALLOWED_ORIGINS
+│   │   ├── logging.go           # RequestID, Recovery, ErrorHandler
 │   │   └── pagination.go        # Page + cursor pagination
 │   ├── cache/                   # RedisCache + MemoryCache
 │   ├── errs/                    # Domain errors + WrapDatabaseError
@@ -71,12 +81,33 @@ When adding new modules:
 - **Routes** (`routes.go`): Only layer that knows about `*internal.App`
 - **Handlers**: Receive specific services they need (e.g., `*OrderService`)
 - **Services**: Receive specific dependencies (e.g., `*db.Queries`, logger, cache)
-- **Auth**: `auth.RegisterRoutes(app)` returns `*AuthService` for other modules
+- **Auth**: `auth.RegisterRoutes(app)` sets `app.AuthMiddleware`; protect a route group with `group.Use(app.AuthMiddleware)`
+- **Registration**: every module is listed once in `internal/server/server.go` `RegisterRoutes`. The API binary and the test server both call it, so a new module is one line there.
+
+## Roles
+- Roles live in `users.roles` (`TEXT[]`): `super-admin`, `admin`, `user` (constants in `middleware/require_role.go`).
+- `UserAuthMiddleware` loads roles from the database on every request; never read roles from JWT claims.
+- Guard routes with `middleware.RequireRole(middleware.RoleAdmin)` or `RequireAnyRole(...)`. A super admin passes every role check.
+- In handlers use `middleware.GetUserRolesFromContext(c)`.
+- Who manages whom is one rule, `users.CanManage`: super admins manage everyone, admins manage only accounts whose every role is `user`.
+- The first super admin is created with `make cli-create-user EMAIL=... PASSWORD=...`.
+
+## Transactions
+Services that need more than one write take `*db.TxRunner` (from `app.Tx`) and use:
+```go
+err := s.tx.WithTx(ctx, func(q *db.Queries) error {
+    // use q, not s.queries; return an error to roll back
+})
+```
+In tests the runner is built on the test transaction, so `WithTx` becomes a savepoint.
 
 ## Context Patterns
 
 ### User ID from Context
 Use `middleware.GetUserIDFromContext(c)` in handlers to get authenticated user ID.
+
+### Request ID
+`middleware.RequestID` puts an ID on the request context and the `X-Request-ID` response header. Log with the `*Context` methods (`logger.ErrorContext(c.Request.Context(), ...)`) and the ID is added to the record automatically.
 
 ### Pagination from Context
 - Page-based: `middleware.GetPaginationParamsFromContext(c, default, min, max)`
@@ -117,6 +148,7 @@ make run              # Start server
 make run-test-db      # Start against TEST_DATABASE_URL
 make build            # Build binary
 make test             # Run all tests (auto-migrates test DB)
+make cli-create-user EMAIL=a@b.c PASSWORD=secret123   # Create a user (default role super-admin)
 make migrate-up       # Apply migrations
 make sqlc             # Generate sqlc code
 make swagger          # Generate API docs
@@ -146,8 +178,12 @@ make swagger          # Generate API docs
 - **Transaction Rollback Pattern** - Each test runs in isolation with automatic rollback
 - **Real Database Testing** - Uses actual PostgreSQL (no mocking)
 - **Test Database Separation** - Uses `TEST_DATABASE_URL` environment variable
+- **Test Database Guard** - `config.AssertTestDatabaseURL` refuses any database whose name does not end in `_test`, or a non-local host unless `ALLOW_REMOTE_TEST_DB=1`. It also guards `--test-db` and `--test`.
+- **One transaction per test** - a failed statement (for example a unique violation) aborts it, so make that request the last one in the test
+- **Same wiring as production** - `CreateTestServer` uses `server.NewEngine` and `server.RegisterRoutes`
 - **MemoryCache** - Tests use in-memory cache (no Redis required)
 - **GenerateTestJWT** - Helper for authenticated integration requests
+- **CreateTestUserWithRoles** - Fixture for role-specific callers
 
 ### Test Patterns
 ```go

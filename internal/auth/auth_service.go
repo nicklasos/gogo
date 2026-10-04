@@ -8,16 +8,19 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct {
 	queries   *db.Queries
+	tx        *db.TxRunner
 	jwtSecret []byte
 	logger    *logger.Logger
 }
@@ -33,11 +36,14 @@ var (
 	ErrInvalidToken       = errs.NewUnauthorizedError(errs.ErrKeyAuthInvalidToken, "Invalid token")
 	ErrTokenExpired       = errs.NewUnauthorizedError(errs.ErrKeyAuthInvalidToken, "Token expired")
 	ErrUserAlreadyExists  = errs.NewBadRequestError(errs.ErrKeyAuthUserExists, "User with this email already exists")
+	// 400 rather than 401: a 401 would make API clients try to refresh the session
+	ErrInvalidCurrentPassword = errs.NewBadRequestError(errs.ErrKeyAuthInvalidCurrentPass, "Current password is incorrect")
 )
 
-func NewAuthService(queries *db.Queries, jwtSecret []byte, logger *logger.Logger) *AuthService {
+func NewAuthService(queries *db.Queries, tx *db.TxRunner, jwtSecret []byte, logger *logger.Logger) *AuthService {
 	return &AuthService{
 		queries:   queries,
+		tx:        tx,
 		jwtSecret: jwtSecret,
 		logger:    logger,
 	}
@@ -56,6 +62,7 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*Token
 		Email:    req.Email,
 		Name:     req.Name,
 		Password: string(hashedPassword),
+		Roles:    []string{middleware.RoleUser},
 	})
 	if err != nil {
 		if domainErr := errs.DomainErrorFromPostgresUniqueViolation(err); domainErr != nil {
@@ -65,7 +72,7 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*Token
 	}
 
 	// Generate token pair
-	tokenPair, err := s.generateTokenPair(ctx, user)
+	tokenPair, err := s.generateTokenPair(ctx, s.queries, user)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate tokens: %w", err)
 	}
@@ -88,7 +95,7 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*TokenPair, 
 	}
 
 	// Generate token pair
-	tokenPair, err := s.generateTokenPair(ctx, user)
+	tokenPair, err := s.generateTokenPair(ctx, s.queries, user)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate tokens: %w", err)
 	}
@@ -110,22 +117,22 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*T
 		return nil, ErrUserNotFound
 	}
 
-	// Revoke old refresh token
-	err = s.queries.RevokeRefreshToken(ctx, refreshToken)
+	var tokenPair *TokenPair
+	err = s.tx.WithTx(ctx, func(q *db.Queries) error {
+		if err := q.RevokeRefreshToken(ctx, refreshToken); err != nil {
+			return errs.WrapDatabaseError(err)
+		}
+		tokenPair, err = s.generateTokenPair(ctx, q, user)
+		return err
+	})
 	if err != nil {
-		// Log error but continue
-	}
-
-	// Generate new token pair
-	tokenPair, err := s.generateTokenPair(ctx, user)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate tokens: %w", err)
+		return nil, fmt.Errorf("failed to rotate refresh token: %w", err)
 	}
 
 	return tokenPair, nil
 }
 
-func (s *AuthService) generateTokenPair(ctx context.Context, user db.User) (*TokenPair, error) {
+func (s *AuthService) generateTokenPair(ctx context.Context, queries *db.Queries, user db.User) (*TokenPair, error) {
 	jtiBytes := make([]byte, 8)
 	if _, err := rand.Read(jtiBytes); err != nil {
 		return nil, fmt.Errorf("failed to generate token id: %w", err)
@@ -157,7 +164,7 @@ func (s *AuthService) generateTokenPair(ctx context.Context, user db.User) (*Tok
 
 	// Store refresh token in database
 	expiresAt := time.Now().Add(30 * 24 * time.Hour)
-	_, err = s.queries.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
+	_, err = queries.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
 		UserID:    user.ID,
 		Token:     refreshTokenString,
 		ExpiresAt: pgtype.Timestamp{Time: expiresAt, Valid: true},
@@ -196,6 +203,62 @@ func (s *AuthService) GetUserFromContext(ctx context.Context, userID int32) (*db
 		return nil, ErrUserNotFound
 	}
 	return &user, nil
+}
+
+// GetUserRoles is called on every authenticated request. A token whose user no longer
+// exists is an invalid token (401), so clients sign out instead of showing "not found".
+func (s *AuthService) GetUserRoles(ctx context.Context, userID int32) ([]string, error) {
+	user, err := s.queries.GetUserByID(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrInvalidToken
+	}
+	if err != nil {
+		return nil, errs.WrapDatabaseError(err)
+	}
+	return user.Roles, nil
+}
+
+func (s *AuthService) UpdateProfile(ctx context.Context, userID int32, email, name string) (*db.User, error) {
+	user, err := s.queries.UpdateUserProfile(ctx, db.UpdateUserProfileParams{
+		ID:    userID,
+		Email: email,
+		Name:  name,
+	})
+	if err != nil {
+		if domainErr := errs.DomainErrorFromPostgresUniqueViolation(err); domainErr != nil {
+			return nil, ErrUserAlreadyExists
+		}
+		return nil, errs.WrapDatabaseError(err)
+	}
+	return &user, nil
+}
+
+// UpdatePassword changes the password and revokes every refresh token, so other sessions
+// cannot be renewed with the old credentials.
+func (s *AuthService) UpdatePassword(ctx context.Context, userID int32, currentPassword, newPassword string) error {
+	user, err := s.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return ErrUserNotFound
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(currentPassword)); err != nil {
+		return ErrInvalidCurrentPassword
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	return s.tx.WithTx(ctx, func(q *db.Queries) error {
+		if err := q.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{
+			ID:       userID,
+			Password: string(hashedPassword),
+		}); err != nil {
+			return errs.WrapDatabaseError(err)
+		}
+		return errs.WrapDatabaseError(q.RevokeAllUserRefreshTokens(ctx, userID))
+	})
 }
 
 // Logout revokes all refresh tokens for the user

@@ -19,7 +19,7 @@ type Config struct {
 	Format    string // json, text
 	Output    string // file path, "stdout", "stderr", or "both"
 	AddSource bool   // add source code position
-	RequestID bool   // enable request ID tracking
+	RequestID bool   // add the request ID from the context to every record
 }
 
 // New creates a new structured logger
@@ -80,6 +80,10 @@ func New(cfg Config) (*Logger, error) {
 		handler = slog.NewJSONHandler(writer, opts)
 	} else {
 		handler = slog.NewTextHandler(writer, opts)
+	}
+
+	if cfg.RequestID {
+		handler = contextHandler{handler}
 	}
 
 	return &Logger{

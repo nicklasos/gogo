@@ -70,6 +70,18 @@ const (
 )
 ```
 
+Keys are grouped by module (`auth.*`, `users.*`, `examples.*`, `uploads.*`, `validation.*`). Clients translate them, so treat a key as part of the API contract.
+
+Validation failures have their own shape and always return 400:
+
+```json
+{
+  "message": "The given data was invalid.",
+  "error_key": "validation.failed",
+  "errors": { "email": ["validation.email.required"] }
+}
+```
+
 ## Handler Helpers
 
 ```go

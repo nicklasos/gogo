@@ -8,21 +8,41 @@ WHERE email = $1 LIMIT 1;
 
 -- name: CreateUser :one
 INSERT INTO users (
-    email, name, password
+    email, name, password, roles
 ) VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4
 )
 RETURNING *;
 
--- name: UpdateUser :one
+-- name: ListUsersByRole :many
+SELECT * FROM users
+WHERE sqlc.arg(role)::text = ANY(roles)
+ORDER BY id
+LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
+
+-- name: CountUsersByRole :one
+SELECT count(*) FROM users
+WHERE sqlc.arg(role)::text = ANY(roles);
+
+-- name: UpdateUserProfile :one
 UPDATE users
 SET
     email = $2,
     name = $3,
-    password = $4,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
 RETURNING *;
+
+-- name: UpdateUserPassword :exec
+UPDATE users
+SET
+    password = $2,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $1;
+
+-- name: DeleteUser :exec
+DELETE FROM users
+WHERE id = $1;
 
 -- Refresh Token Queries
 -- name: CreateRefreshToken :one

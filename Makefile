@@ -141,13 +141,13 @@ cli-migrate-create:
 	go run ./cmd/cli migrate create $$name
 
 cli-migrate-test-up:
-	go run ./cmd/cli migrate --test up
+	go run ./cmd/cli --test migrate up
 
 cli-migrate-test-down:
-	go run ./cmd/cli migrate --test down
+	go run ./cmd/cli --test migrate down
 
 cli-migrate-test-status:
-	go run ./cmd/cli migrate --test status
+	go run ./cmd/cli --test migrate status
 
 # CLI test command
 cli-test:
@@ -155,6 +155,10 @@ cli-test:
 
 cli-test-db:
 	go run ./cmd/cli --test test
+
+# Usage: make cli-create-user EMAIL=admin@example.com PASSWORD=secret123 [NAME="Admin"] [ROLE=super-admin]
+cli-create-user:
+	go run ./cmd/cli create-user --email "$(EMAIL)" --password "$(PASSWORD)" $(if $(NAME),--name "$(NAME)") $(if $(ROLE),--role "$(ROLE)")
 
 # CLI help
 cli-help:
@@ -164,10 +168,10 @@ tidy:
 	go mod tidy
 
 clean:
-	rm -rf bin/ docs/ tmp/
+	rm -rf bin/ tmp/
 
 air-install:
-	go install github.com/cosmtrek/air@latest
+	go install github.com/air-verse/air@latest
 
 # Supervisord commands
 supervisor-restart:
@@ -211,6 +215,7 @@ help:
 	@echo "    sqlc                Generate sqlc code"
 	@echo "    sqlc-install        Install sqlc CLI"
 	@echo "    schema-dump         Dump schema to internal/db/schema.sql"
+	@echo "    cli-create-user     Create a user (EMAIL=, PASSWORD=, NAME=, ROLE=)"
 	@echo ""
 	@echo "  Testing:"
 	@echo "    test                Run all tests (auto-migrates test DB)"
@@ -227,4 +232,4 @@ help:
 	@echo "    supervisor-restart  Restart supervisord program"
 	@echo "    help                Show this help"
 
-.PHONY: run dev build build-cron build-cli run-cron run-cron-test-db run-test-db sqlc sqlc-install schema-dump swagger test test-unit test-integration test-verbose test-coverage test-db-setup test-db-reset test-with-db test-migrate-up test-migrate-down test-migrate-status fmt tidy clean air-install migrate-up migrate-down migrate-status migrate-reset migrate-create migrate-install cli-migrate-up cli-migrate-down cli-migrate-status cli-migrate-create cli-migrate-test-up cli-migrate-test-down cli-migrate-test-status cli-test cli-test-db cli-help supervisor-restart supervisor-status supervisor-stop supervisor-start supervisor-logs supervisor-error-logs help
+.PHONY: run dev build build-cron build-cli run-cron run-cron-test-db run-test-db sqlc sqlc-install schema-dump swagger test test-unit test-integration test-verbose test-coverage test-db-setup test-db-reset test-with-db test-migrate-up test-migrate-down test-migrate-status fmt tidy clean air-install migrate-up migrate-down migrate-status migrate-reset migrate-create migrate-install cli-migrate-up cli-migrate-down cli-migrate-status cli-migrate-create cli-migrate-test-up cli-migrate-test-down cli-migrate-test-status cli-test cli-test-db cli-create-user cli-help supervisor-restart supervisor-status supervisor-stop supervisor-start supervisor-logs supervisor-error-logs help

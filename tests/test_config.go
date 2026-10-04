@@ -45,6 +45,10 @@ func GetTestDBPool() *pgxpool.Pool {
 			panic("TEST_DATABASE_URL environment variable is required for tests")
 		}
 
+		if err := config.AssertTestDatabaseURL(testDBURL); err != nil {
+			panic(err.Error())
+		}
+
 		// Create test configuration
 		cfg := &config.Config{
 			DatabaseURL: testDBURL,

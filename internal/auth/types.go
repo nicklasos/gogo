@@ -15,9 +15,22 @@ type LoginRequest struct {
 
 // UserResponse represents user information
 type UserResponse struct {
-	ID    int32  `json:"id"`
-	Email string `json:"email"`
-	Name  string `json:"name"`
+	ID    int32    `json:"id"`
+	Email string   `json:"email"`
+	Name  string   `json:"name"`
+	Roles []string `json:"roles"`
+}
+
+// UpdateProfileRequest represents the request to update the current user
+type UpdateProfileRequest struct {
+	Email string `json:"email" binding:"required,email"`
+	Name  string `json:"name" binding:"required"`
+}
+
+// UpdatePasswordRequest represents the request to change the current user's password
+type UpdatePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=8"`
 }
 
 // RegisterResponse represents the response structure for register endpoint
@@ -43,11 +56,6 @@ type RefreshTokenRequest struct {
 type RefreshTokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
-}
-
-// ErrorResponse represents error response structure
-type ErrorResponse struct {
-	Error string `json:"error"`
 }
 
 // RegisterDataResponse wraps register response in data field
