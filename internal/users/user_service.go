@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"app/internal"
 	"app/internal/db"
 	"app/internal/errs"
 	"app/internal/middleware"
@@ -83,7 +84,7 @@ func (s *UserService) Create(ctx context.Context, callerRoles []string, req Crea
 	}
 
 	user, err := s.queries.CreateUser(ctx, db.CreateUserParams{
-		Email:    req.Email,
+		Email:    internal.NormalizeEmail(req.Email),
 		Name:     req.Name,
 		Password: string(hashedPassword),
 		Roles:    []string{req.Role},
@@ -106,7 +107,7 @@ func (s *UserService) Update(ctx context.Context, callerRoles []string, id int32
 
 	user, err := s.queries.UpdateUserProfile(ctx, db.UpdateUserProfileParams{
 		ID:           id,
-		Email:        req.Email,
+		Email:        internal.NormalizeEmail(req.Email),
 		Name:         req.Name,
 		KeepVerified: true,
 	})

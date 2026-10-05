@@ -42,22 +42,13 @@ func ExtractBearerToken(authHeader string) (string, bool) {
 	return authHeader, true
 }
 
-// ExtractUserIDFromJWT extracts user ID from JWT token in Authorization header or query parameter
-// Checks query parameter "token" first (for WebSocket connections), then Authorization header
+// ExtractUserIDFromJWT extracts the user ID from the JWT in the Authorization header.
+// The token is not read from the URL: query strings end up in access logs and browser history.
 // Returns (nil, nil) if no token is provided
 // Returns (nil, error) if token is invalid or verification fails
 // Returns (userID, nil) if token is valid
 func ExtractUserIDFromJWT(c *gin.Context, verifier UserJWTVerifier) (*int32, error) {
-	var tokenString string
-
-	// Check query parameter first (common for WebSocket connections)
-	tokenString = c.Query("token")
-
-	// If not in query, check Authorization header
-	if tokenString == "" {
-		authHeader := c.GetHeader("Authorization")
-		tokenString, _ = ExtractBearerToken(authHeader)
-	}
+	tokenString, _ := ExtractBearerToken(c.GetHeader("Authorization"))
 
 	if tokenString == "" {
 		return nil, nil

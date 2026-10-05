@@ -88,7 +88,7 @@ type CreateRefreshTokenParams struct {
 	ExpiresAt pgtype.Timestamp `db:"expires_at" json:"expires_at"`
 }
 
-// Refresh Token Queries
+// Refresh Token Queries. The token column holds a SHA-256 hash, never the token itself.
 func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error) {
 	row := q.db.QueryRow(ctx, createRefreshToken, arg.UserID, arg.Token, arg.ExpiresAt)
 	var i RefreshToken
@@ -209,12 +209,12 @@ func (q *Queries) GetRefreshToken(ctx context.Context, token string) (RefreshTok
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, name, password, roles, created_at, updated_at, email_verified_at FROM users 
-WHERE email = $1 LIMIT 1
+SELECT id, email, name, password, roles, created_at, updated_at, email_verified_at FROM users
+WHERE LOWER(email) = LOWER($1) LIMIT 1
 `
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByEmail, email)
+func (q *Queries) GetUserByEmail(ctx context.Context, lower string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, lower)
 	var i User
 	err := row.Scan(
 		&i.ID,

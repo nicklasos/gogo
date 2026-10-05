@@ -19,6 +19,12 @@ type Cache interface {
 	Has(ctx context.Context, key string) (bool, error)
 }
 
+// Pinger is implemented by caches that depend on a server, so the health check can
+// tell "the cache is down" apart from "the key is missing".
+type Pinger interface {
+	Ping(ctx context.Context) error
+}
+
 // RedisCache implements Cache interface using Redis
 type RedisCache struct {
 	client *redis.Client
@@ -120,6 +126,10 @@ func (c *RedisCache) Has(ctx context.Context, key string) (bool, error) {
 	result := c.client.Exists(ctx, c.key(key))
 	count, err := result.Result()
 	return count > 0, err
+}
+
+func (c *RedisCache) Ping(ctx context.Context) error {
+	return c.client.Ping(ctx).Err()
 }
 
 // key adds the prefix to the key

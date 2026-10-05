@@ -7,9 +7,7 @@ What is worth adding to the skeleton next, in priority order. Each item names th
 | Item | Why | Port from |
 |---|---|---|
 | golangci-lint | CI runs `gofmt`, `go vet` and the tests; a linter config would catch more | — |
-| Remove `?token=` query auth | Puts JWTs into URLs and access logs; keep only if a project needs WebSockets | `internal/middleware/user_auth.go` |
-| Email normalisation | Login matches the email exactly, while the index is on `LOWER(email)`; lower-case on write and on lookup | — |
-| Refresh token hashing | Refresh tokens are stored in plain text; store a hash like `auth_tokens` does | `internal/auth/auth_service.go` |
+| WebSocket authentication | Tokens are no longer accepted in the URL; a project with WebSockets needs a short-lived ticket endpoint instead | — |
 
 ## P2
 

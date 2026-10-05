@@ -93,7 +93,7 @@ Run the tests with `make test`; it migrates the test database first.
 - **Swagger**: Auto-generated API documentation
 - **Uploads**: content-checked file upload behind a `Storage` interface, paginated list, and file serving without directory listings
 - **Docker and CI**: `docker-compose.yml` for local services, a production `Dockerfile`, and a GitHub Actions workflow
-- **Healthcheck**: `/health` pings PostgreSQL
+- **Healthcheck**: `/health` checks PostgreSQL and Redis and answers 503 when either is down
 - **Scheduler**: Optional cron jobs (refresh-token cleanup)
 
 ## Tech Stack
@@ -188,7 +188,7 @@ Admins can only manage accounts whose role is `user`; anything else returns 403 
 - `GET /api/files/*` - Serve uploaded files (public)
 
 ### Other
-- `GET /health` - Health check (DB ping)
+- `GET /health` - Health check (database and cache); 503 with a per-dependency `checks` map when one is down
 - `GET /api/v1/health` - Same health check under API prefix
 - `GET /swagger/*` - API documentation
 
@@ -233,7 +233,8 @@ ENABLE_SCHEDULER=false
 
 ## Auth
 
-- **Tokens**: a short-lived access JWT (`JWT_ACCESS_TOKEN_TTL`) and a single-use refresh token (`JWT_REFRESH_TOKEN_TTL`) that is rotated on every refresh.
+- **Tokens**: a short-lived access JWT (`JWT_ACCESS_TOKEN_TTL`) and a single-use refresh token (`JWT_REFRESH_TOKEN_TTL`) that is rotated on every refresh and stored only as a hash. Tokens are read from the `Authorization` header, never from the URL.
+- **Emails** are stored lower-case and matched case-insensitively, with a unique index on `LOWER(email)`.
 - **Password reset**: `forgot-password` emails `FRONTEND_URL/reset-password?token=...`. The link works once, expires after `PASSWORD_RESET_TTL`, and using it signs out every session. The endpoint answers 200 whether or not the email exists.
 - **Email verification**: registration and a changed email send `FRONTEND_URL/verify-email?token=...`. Users expose `email_verified`; accounts created by an admin or the CLI start verified. Nothing is blocked for unverified users by default, so add your own check where a project needs one.
 - **Rate limiting**: login allows 60 requests a minute per IP and 40 failures an hour per email and IP, then locks that pair out for 5 minutes, 15 minutes, 1 hour, 6 hours, 24 hours. Emailed-link endpoints allow 10 requests per 10 minutes per IP. A 429 carries `Retry-After` and `details.retry_after_seconds`. Behind a proxy, set `TRUSTED_PROXIES` or every client shares the proxy's IP.

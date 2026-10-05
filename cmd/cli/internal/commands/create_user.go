@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"app/cmd/cli/internal"
+	appinternal "app/internal"
 	"app/internal/db"
 	"app/internal/errs"
 	"app/internal/middleware"
@@ -41,7 +42,7 @@ func RunCreateUser(app *internal.CLIApp, args []string) {
 		os.Exit(1)
 	}
 
-	*email = strings.TrimSpace(*email)
+	*email = appinternal.NormalizeEmail(*email)
 	*name = strings.TrimSpace(*name)
 	*role = strings.TrimSpace(*role)
 

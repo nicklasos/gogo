@@ -3,8 +3,8 @@ SELECT * FROM users
 WHERE id = $1 LIMIT 1;
 
 -- name: GetUserByEmail :one
-SELECT * FROM users 
-WHERE email = $1 LIMIT 1;
+SELECT * FROM users
+WHERE LOWER(email) = LOWER($1) LIMIT 1;
 
 -- name: CreateUser :one
 INSERT INTO users (
@@ -55,7 +55,7 @@ WHERE id = $1;
 DELETE FROM users
 WHERE id = $1;
 
--- Refresh Token Queries
+-- Refresh Token Queries. The token column holds a SHA-256 hash, never the token itself.
 -- name: CreateRefreshToken :one
 INSERT INTO refresh_tokens (
     user_id, token, expires_at

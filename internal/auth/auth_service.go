@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"app/internal"
 	"app/internal/db"
 	"app/internal/errs"
 	"app/internal/logger"
@@ -101,7 +102,7 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*Token
 
 	// Create user (let DB enforce uniqueness to avoid race conditions)
 	user, err := s.queries.CreateUser(ctx, db.CreateUserParams{
-		Email:    req.Email,
+		Email:    internal.NormalizeEmail(req.Email),
 		Name:     req.Name,
 		Password: string(hashedPassword),
 		Roles:    []string{middleware.RoleUser},
@@ -128,7 +129,7 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*Token
 // Login authenticates a user and returns tokens
 func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*TokenPair, *db.User, error) {
 	// Get user by email
-	user, err := s.queries.GetUserByEmail(ctx, req.Email)
+	user, err := s.queries.GetUserByEmail(ctx, internal.NormalizeEmail(req.Email))
 	if err != nil {
 		return nil, nil, ErrInvalidCredentials
 	}
@@ -151,7 +152,8 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*TokenPair, 
 // RefreshToken generates a new token pair using a refresh token
 func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*TokenPair, error) {
 	// Get refresh token from database
-	dbToken, err := s.queries.GetRefreshToken(ctx, refreshToken)
+	tokenHash := hashToken(refreshToken)
+	dbToken, err := s.queries.GetRefreshToken(ctx, tokenHash)
 	if err != nil {
 		return nil, ErrInvalidToken
 	}
@@ -164,7 +166,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*T
 
 	var tokenPair *TokenPair
 	err = s.tx.WithTx(ctx, func(q *db.Queries) error {
-		if err := q.RevokeRefreshToken(ctx, refreshToken); err != nil {
+		if err := q.RevokeRefreshToken(ctx, tokenHash); err != nil {
 			return errs.WrapDatabaseError(err)
 		}
 		tokenPair, err = s.generateTokenPair(ctx, q, user)
@@ -205,11 +207,11 @@ func (s *AuthService) generateTokenPair(ctx context.Context, queries *db.Queries
 	}
 	refreshTokenString := hex.EncodeToString(refreshTokenBytes)
 
-	// Store refresh token in database
+	// Only the hash is stored, so a database leak does not hand out usable sessions
 	expiresAt := time.Now().Add(s.opts.RefreshTokenTTL)
 	_, err = queries.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
 		UserID:    user.ID,
-		Token:     refreshTokenString,
+		Token:     hashToken(refreshTokenString),
 		ExpiresAt: pgtype.Timestamp{Time: expiresAt, Valid: true},
 	})
 	if err != nil {
@@ -265,7 +267,7 @@ func (s *AuthService) GetUserRoles(ctx context.Context, userID int32) ([]string,
 func (s *AuthService) UpdateProfile(ctx context.Context, userID int32, email, name string) (*db.User, error) {
 	user, err := s.queries.UpdateUserProfile(ctx, db.UpdateUserProfileParams{
 		ID:    userID,
-		Email: email,
+		Email: internal.NormalizeEmail(email),
 		Name:  name,
 	})
 	if err != nil {
@@ -283,7 +285,7 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID int32, email, na
 // RequestPasswordReset emails a reset link when the address belongs to an account. It
 // reports nothing about whether it does, so the endpoint cannot be used to find accounts.
 func (s *AuthService) RequestPasswordReset(ctx context.Context, email string) {
-	user, err := s.queries.GetUserByEmail(ctx, email)
+	user, err := s.queries.GetUserByEmail(ctx, internal.NormalizeEmail(email))
 	if err != nil {
 		return
 	}
@@ -380,7 +382,7 @@ func (s *AuthService) issueEmailToken(ctx context.Context, userID int32, purpose
 		return errs.WrapDatabaseError(q.CreateAuthToken(ctx, db.CreateAuthTokenParams{
 			UserID:     userID,
 			Purpose:    purpose,
-			TokenHash:  hashEmailToken(token),
+			TokenHash:  hashToken(token),
 			TtlSeconds: int32(ttl.Seconds()),
 		}))
 	})
@@ -391,7 +393,7 @@ func (s *AuthService) issueEmailToken(ctx context.Context, userID int32, purpose
 }
 
 func consumeEmailToken(ctx context.Context, q *db.Queries, token, purpose string) (int32, error) {
-	userID, err := q.ConsumeAuthToken(ctx, db.ConsumeAuthTokenParams{TokenHash: hashEmailToken(token), Purpose: purpose})
+	userID, err := q.ConsumeAuthToken(ctx, db.ConsumeAuthTokenParams{TokenHash: hashToken(token), Purpose: purpose})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrInvalidEmailToken
 	}
@@ -401,7 +403,8 @@ func consumeEmailToken(ctx context.Context, q *db.Queries, token, purpose string
 	return userID, nil
 }
 
-func hashEmailToken(token string) string {
+// hashToken is how refresh tokens and emailed tokens are stored and looked up.
+func hashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
 }

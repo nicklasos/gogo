@@ -109,6 +109,9 @@ In tests the runner is built on the test transaction, so `WithTx` becomes a save
 - `middleware.AuthRateLimit` guards login (call `middleware.MarkAuthSuccess(c)` on success); `middleware.RateLimit(cache, log, scope, limit, window)` is the generic per-IP limiter for anything else.
 - A 401 from an authenticated route makes clients try a token refresh, so use 400 or 403 for anything that is not "this session is invalid".
 - Registration is a 403 unless `ALLOW_REGISTRATION=true`.
+- Pass every email that enters the system through `internal.NormalizeEmail` before storing or looking it up.
+- Refresh tokens and emailed tokens are stored as hashes (`hashToken`); the raw value exists only in the response or the email.
+- `/health` reports the database and any cache that implements `cache.Pinger`. Add a check there for each new dependency the API cannot serve without.
 
 ## Uploads
 - Go through `UploadService`; file bytes go through the `Storage` interface (`LocalStorage` by default). Never build disk paths from request data yourself: `LocalStorage.Resolve` is the traversal guard.
