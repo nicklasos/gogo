@@ -8,7 +8,7 @@ import (
 	"app/internal/logger"
 )
 
-// CleanupRefreshTokensJob deletes expired refresh tokens from the database.
+// CleanupRefreshTokensJob deletes expired refresh tokens and spent or expired emailed tokens.
 type CleanupRefreshTokensJob struct {
 	config  *config.Config
 	queries *db.Queries
@@ -33,6 +33,11 @@ func (j *CleanupRefreshTokensJob) Execute(ctx context.Context) error {
 		return err
 	}
 
+	if err := j.queries.DeleteExpiredAuthTokens(ctx); err != nil {
+		j.logger.ErrorContext(ctx, "Failed to delete expired auth tokens", "error", err)
+		return err
+	}
+
 	j.logger.InfoContext(ctx, "Refresh token cleanup job completed")
 	return nil
 }
@@ -44,5 +49,5 @@ func (j *CleanupRefreshTokensJob) Name() string {
 
 // Description returns the job description
 func (j *CleanupRefreshTokensJob) Description() string {
-	return "Deletes expired refresh tokens from the database"
+	return "Deletes expired refresh tokens and spent or expired password reset and email verification tokens"
 }

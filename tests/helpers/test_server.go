@@ -16,6 +16,7 @@ import (
 	"app/internal/cache"
 	"app/internal/db"
 	"app/internal/logger"
+	"app/internal/mail"
 	custommiddleware "app/internal/middleware"
 	"app/internal/server"
 
@@ -30,6 +31,9 @@ const TestJWTSecret = "test-secret-key"
 type TestServer struct {
 	server *httptest.Server
 	router *gin.Engine
+
+	// Mail collects every message the application sent during the test
+	Mail *mail.MemorySender
 }
 
 // TestResponse represents an HTTP response for testing
@@ -58,8 +62,9 @@ func GenerateTestJWT(userID int32, email string) string {
 	return tokenString
 }
 
-// CreateTestServer creates a test server with transaction-scoped database queries
-func CreateTestServer(t *testing.T, ctx context.Context, tx pgx.Tx, queries *db.Queries) *TestServer {
+// CreateTestServer creates a test server with transaction-scoped database queries.
+// Pass configure functions to change the config before the routes are registered.
+func CreateTestServer(t *testing.T, ctx context.Context, tx pgx.Tx, queries *db.Queries, configure ...func(*config.Config)) *TestServer {
 	gin.SetMode(gin.TestMode)
 
 	testLogger, err := logger.New(logger.Config{
@@ -75,9 +80,20 @@ func CreateTestServer(t *testing.T, ctx context.Context, tx pgx.Tx, queries *db.
 		UploadFolder: t.TempDir(),
 		FilesBaseURL: "http://localhost:8181/api/files",
 		JWTSecret:    TestJWTSecret,
+		AppName:      "TestApp",
+		FrontendURL:  "http://localhost:5173",
+
+		AllowRegistration: true,
+		AuthRateLimit:     true,
+		TrustedProxies:    []string{"127.0.0.1", "::1"},
+	}
+
+	for _, fn := range configure {
+		fn(testConfig)
 	}
 
 	router := server.NewEngine(testConfig, testLogger)
+	testMail := mail.NewMemorySender()
 
 	app := &internal.App{
 		Config:  testConfig,
@@ -85,6 +101,7 @@ func CreateTestServer(t *testing.T, ctx context.Context, tx pgx.Tx, queries *db.
 		Tx:      db.NewTxRunner(tx, queries),
 		Cache:   cache.NewMemoryCache(),
 		Logger:  testLogger,
+		Mail:    testMail,
 		Api:     router.Group("/api/v1"),
 		Images:  internal.NewImageService(testConfig.FilesBaseURL),
 	}
@@ -94,6 +111,7 @@ func CreateTestServer(t *testing.T, ctx context.Context, tx pgx.Tx, queries *db.
 	return &TestServer{
 		server: httptest.NewServer(router),
 		router: router,
+		Mail:   testMail,
 	}
 }
 

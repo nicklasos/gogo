@@ -13,6 +13,9 @@ definitions:
         type: integer
       timestamp:
         type: string
+    required:
+    - error_key
+    - status
     type: object
   internal.PaginationMeta:
     properties:
@@ -24,11 +27,25 @@ definitions:
         type: integer
       total:
         type: integer
+    required:
+    - current_page
+    - last_page
+    - per_page
+    - total
+    type: object
+  internal_auth.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
     type: object
   internal_auth.LoginDataResponse:
     properties:
       data:
         $ref: '#/definitions/internal_auth.LoginResponse'
+    required:
+    - data
     type: object
   internal_auth.LoginRequest:
     properties:
@@ -48,6 +65,10 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/internal_auth.UserResponse'
+    required:
+    - access_token
+    - refresh_token
+    - user
     type: object
   internal_auth.MessageResponse:
     properties:
@@ -55,12 +76,18 @@ definitions:
         properties:
           message:
             type: string
+        required:
+        - message
         type: object
+    required:
+    - data
     type: object
   internal_auth.RefreshTokenDataResponse:
     properties:
       data:
         $ref: '#/definitions/internal_auth.RefreshTokenResponse'
+    required:
+    - data
     type: object
   internal_auth.RefreshTokenRequest:
     properties:
@@ -75,11 +102,16 @@ definitions:
         type: string
       refresh_token:
         type: string
+    required:
+    - access_token
+    - refresh_token
     type: object
   internal_auth.RegisterDataResponse:
     properties:
       data:
         $ref: '#/definitions/internal_auth.RegisterResponse'
+    required:
+    - data
     type: object
   internal_auth.RegisterRequest:
     properties:
@@ -103,6 +135,21 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/internal_auth.UserResponse'
+    required:
+    - access_token
+    - refresh_token
+    - user
+    type: object
+  internal_auth.ResetPasswordRequest:
+    properties:
+      password:
+        minLength: 8
+        type: string
+      token:
+        type: string
+    required:
+    - password
+    - token
     type: object
   internal_auth.UpdatePasswordRequest:
     properties:
@@ -129,11 +176,15 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/internal_auth.UserResponse'
+    required:
+    - data
     type: object
   internal_auth.UserResponse:
     properties:
       email:
         type: string
+      email_verified:
+        type: boolean
       id:
         type: integer
       name:
@@ -142,6 +193,19 @@ definitions:
         items:
           type: string
         type: array
+    required:
+    - email
+    - email_verified
+    - id
+    - name
+    - roles
+    type: object
+  internal_auth.VerifyEmailRequest:
+    properties:
+      token:
+        type: string
+    required:
+    - token
     type: object
   internal_example.CreateExampleRequest:
     properties:
@@ -156,6 +220,8 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/internal_example.ExampleResponse'
+    required:
+    - data
     type: object
   internal_example.ExampleResponse:
     properties:
@@ -171,6 +237,13 @@ definitions:
         type: string
       user_id:
         type: integer
+    required:
+    - created_at
+    - description
+    - id
+    - title
+    - updated_at
+    - user_id
     type: object
   internal_example.MessageResponse:
     properties:
@@ -178,7 +251,11 @@ definitions:
         properties:
           message:
             type: string
+        required:
+        - message
         type: object
+    required:
+    - data
     type: object
   internal_example.PaginatedExamplesResponse:
     properties:
@@ -188,6 +265,9 @@ definitions:
         type: array
       pagination:
         $ref: '#/definitions/internal.PaginationMeta'
+    required:
+    - data
+    - pagination
     type: object
   internal_example.UpdateExampleRequest:
     properties:
@@ -204,12 +284,30 @@ definitions:
         properties:
           message:
             type: string
+        required:
+        - message
         type: object
+    required:
+    - data
+    type: object
+  internal_uploads.PaginatedUploadsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/internal_uploads.UploadResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/internal.PaginationMeta'
+    required:
+    - data
+    - pagination
     type: object
   internal_uploads.UploadDataResponse:
     properties:
       data:
         $ref: '#/definitions/internal_uploads.UploadResponse'
+    required:
+    - data
     type: object
   internal_uploads.UploadResponse:
     properties:
@@ -230,18 +328,29 @@ definitions:
       relative_path:
         type: string
       type:
+        enum:
+        - image
+        - video
+        - audio
+        - document
+        - other
         type: string
       updated_at:
         type: string
       user_id:
         type: integer
-    type: object
-  internal_uploads.UploadsListResponse:
-    properties:
-      data:
-        items:
-          $ref: '#/definitions/internal_uploads.UploadResponse'
-        type: array
+    required:
+    - created_at
+    - file_size
+    - folder_id
+    - full_url
+    - id
+    - mime_type
+    - original_filename
+    - relative_path
+    - type
+    - updated_at
+    - user_id
     type: object
   internal_users.CreateUserRequest:
     properties:
@@ -270,7 +379,11 @@ definitions:
         properties:
           message:
             type: string
+        required:
+        - message
         type: object
+    required:
+    - data
     type: object
   internal_users.PaginatedUsersResponse:
     properties:
@@ -280,6 +393,9 @@ definitions:
         type: array
       pagination:
         $ref: '#/definitions/internal.PaginationMeta'
+    required:
+    - data
+    - pagination
     type: object
   internal_users.SetPasswordRequest:
     properties:
@@ -303,6 +419,8 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/internal_users.UserResponse'
+    required:
+    - data
     type: object
   internal_users.UserResponse:
     properties:
@@ -310,6 +428,8 @@ definitions:
         type: string
       email:
         type: string
+      email_verified:
+        type: boolean
       id:
         type: integer
       name:
@@ -320,6 +440,14 @@ definitions:
         type: array
       updated_at:
         type: string
+    required:
+    - created_at
+    - email
+    - email_verified
+    - id
+    - name
+    - roles
+    - updated_at
     type: object
 host: localhost:8181
 info:
@@ -329,12 +457,43 @@ info:
     url: http://www.swagger.io/support
   description: A production-ready Go API template with authentication and CRUD examples
   license:
-    name: Apache 2.0
-    url: http://www.apache.org/licenses/LICENSE-2.0.html
+    name: WTFPL
+    url: http://www.wtfpl.net/
   termsOfService: http://swagger.io/terms/
   title: Gogo API Template
   version: "1.0"
 paths:
+  /api/v1/auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Emails a single-use reset link when the address belongs to an account.
+        Always answers 200, so it does not reveal which emails are registered.
+      parameters:
+      - description: Account email
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+      summary: Request a password reset
+      tags:
+      - auth
   /api/v1/auth/login:
     post:
       consumes:
@@ -487,6 +646,35 @@ paths:
       summary: Change current user password
       tags:
       - auth
+  /api/v1/auth/me/verify-email:
+    post:
+      consumes:
+      - application/json
+      description: Sends a new verification link to the current user's email address
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Resend verification email
+      tags:
+      - auth
   /api/v1/auth/refresh:
     post:
       consumes:
@@ -549,6 +737,67 @@ paths:
           schema:
             $ref: '#/definitions/app_internal_errs.ErrorResponse'
       summary: Register new user
+      tags:
+      - auth
+  /api/v1/auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Sets a new password with the token from the emailed link. The link
+        works once; all sessions are signed out.
+      parameters:
+      - description: Token and new password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+      summary: Reset password
+      tags:
+      - auth
+  /api/v1/auth/verify-email:
+    post:
+      consumes:
+      - application/json
+      description: Confirms an email address with the token from the emailed link
+      parameters:
+      - description: Token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.VerifyEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+      summary: Verify email
       tags:
       - auth
   /api/v1/examples:
@@ -749,19 +998,33 @@ paths:
       - examples
   /api/v1/uploads:
     get:
-      description: List all uploads for the authenticated user
+      description: Paginated list of the authenticated user's uploads, newest first
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: page_size
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_uploads.UploadsListResponse'
+            $ref: '#/definitions/internal_uploads.PaginatedUploadsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       security:
       - BearerAuth: []
       summary: List uploads
@@ -787,18 +1050,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Upload file
@@ -823,13 +1083,11 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Delete upload
@@ -853,13 +1111,11 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get upload

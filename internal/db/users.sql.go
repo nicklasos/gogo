@@ -11,6 +11,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const consumeAuthToken = `-- name: ConsumeAuthToken :one
+UPDATE auth_tokens
+SET used_at = CURRENT_TIMESTAMP
+WHERE token_hash = $1
+  AND purpose = $2
+  AND used_at IS NULL
+  AND expires_at > CURRENT_TIMESTAMP
+RETURNING user_id
+`
+
+type ConsumeAuthTokenParams struct {
+	TokenHash string `db:"token_hash" json:"token_hash"`
+	Purpose   string `db:"purpose" json:"purpose"`
+}
+
+// Marks the token used and returns its owner in one statement, so a link works exactly once.
+func (q *Queries) ConsumeAuthToken(ctx context.Context, arg ConsumeAuthTokenParams) (int32, error) {
+	row := q.db.QueryRow(ctx, consumeAuthToken, arg.TokenHash, arg.Purpose)
+	var user_id int32
+	err := row.Scan(&user_id)
+	return user_id, err
+}
+
 const countUsersByRole = `-- name: CountUsersByRole :one
 SELECT count(*) FROM users
 WHERE $1::text = ANY(roles)
@@ -21,6 +44,33 @@ func (q *Queries) CountUsersByRole(ctx context.Context, role string) (int64, err
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const createAuthToken = `-- name: CreateAuthToken :exec
+INSERT INTO auth_tokens (
+    user_id, purpose, token_hash, expires_at
+) VALUES (
+    $1, $2, $3,
+    CURRENT_TIMESTAMP + $4::int * INTERVAL '1 second'
+)
+`
+
+type CreateAuthTokenParams struct {
+	UserID     int32  `db:"user_id" json:"user_id"`
+	Purpose    string `db:"purpose" json:"purpose"`
+	TokenHash  string `db:"token_hash" json:"token_hash"`
+	TtlSeconds int32  `db:"ttl_seconds" json:"ttl_seconds"`
+}
+
+// Auth Token Queries (password reset, email verification)
+func (q *Queries) CreateAuthToken(ctx context.Context, arg CreateAuthTokenParams) error {
+	_, err := q.db.Exec(ctx, createAuthToken,
+		arg.UserID,
+		arg.Purpose,
+		arg.TokenHash,
+		arg.TtlSeconds,
+	)
+	return err
 }
 
 const createRefreshToken = `-- name: CreateRefreshToken :one
@@ -55,18 +105,20 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
-    email, name, password, roles
+    email, name, password, roles, email_verified_at
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4,
+    CASE WHEN $5::bool THEN CURRENT_TIMESTAMP END
 )
-RETURNING id, email, name, password, roles, created_at, updated_at
+RETURNING id, email, name, password, roles, created_at, updated_at, email_verified_at
 `
 
 type CreateUserParams struct {
-	Email    string   `db:"email" json:"email"`
-	Name     string   `db:"name" json:"name"`
-	Password string   `db:"password" json:"password"`
-	Roles    []string `db:"roles" json:"roles"`
+	Email         string   `db:"email" json:"email"`
+	Name          string   `db:"name" json:"name"`
+	Password      string   `db:"password" json:"password"`
+	Roles         []string `db:"roles" json:"roles"`
+	EmailVerified bool     `db:"email_verified" json:"email_verified"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -75,6 +127,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.Name,
 		arg.Password,
 		arg.Roles,
+		arg.EmailVerified,
 	)
 	var i User
 	err := row.Scan(
@@ -85,8 +138,19 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Roles,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.EmailVerifiedAt,
 	)
 	return i, err
+}
+
+const deleteExpiredAuthTokens = `-- name: DeleteExpiredAuthTokens :exec
+DELETE FROM auth_tokens
+WHERE expires_at < CURRENT_TIMESTAMP OR used_at IS NOT NULL
+`
+
+func (q *Queries) DeleteExpiredAuthTokens(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, deleteExpiredAuthTokens)
+	return err
 }
 
 const deleteExpiredRefreshTokens = `-- name: DeleteExpiredRefreshTokens :exec
@@ -106,6 +170,21 @@ WHERE id = $1
 
 func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 	_, err := q.db.Exec(ctx, deleteUser, id)
+	return err
+}
+
+const deleteUserAuthTokens = `-- name: DeleteUserAuthTokens :exec
+DELETE FROM auth_tokens
+WHERE user_id = $1 AND purpose = $2
+`
+
+type DeleteUserAuthTokensParams struct {
+	UserID  int32  `db:"user_id" json:"user_id"`
+	Purpose string `db:"purpose" json:"purpose"`
+}
+
+func (q *Queries) DeleteUserAuthTokens(ctx context.Context, arg DeleteUserAuthTokensParams) error {
+	_, err := q.db.Exec(ctx, deleteUserAuthTokens, arg.UserID, arg.Purpose)
 	return err
 }
 
@@ -130,7 +209,7 @@ func (q *Queries) GetRefreshToken(ctx context.Context, token string) (RefreshTok
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, name, password, roles, created_at, updated_at FROM users 
+SELECT id, email, name, password, roles, created_at, updated_at, email_verified_at FROM users 
 WHERE email = $1 LIMIT 1
 `
 
@@ -145,12 +224,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Roles,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.EmailVerifiedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, name, password, roles, created_at, updated_at FROM users 
+SELECT id, email, name, password, roles, created_at, updated_at, email_verified_at FROM users 
 WHERE id = $1 LIMIT 1
 `
 
@@ -165,14 +245,15 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 		&i.Roles,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.EmailVerifiedAt,
 	)
 	return i, err
 }
 
 const listUsersByRole = `-- name: ListUsersByRole :many
-SELECT id, email, name, password, roles, created_at, updated_at FROM users
+SELECT id, email, name, password, roles, created_at, updated_at, email_verified_at FROM users
 WHERE $1::text = ANY(roles)
-ORDER BY id
+ORDER BY id DESC
 LIMIT $3 OFFSET $2
 `
 
@@ -182,6 +263,7 @@ type ListUsersByRoleParams struct {
 	PageLimit  int32  `db:"page_limit" json:"page_limit"`
 }
 
+// Newest first, so an account that was just created is on the first page.
 func (q *Queries) ListUsersByRole(ctx context.Context, arg ListUsersByRoleParams) ([]User, error) {
 	rows, err := q.db.Query(ctx, listUsersByRole, arg.Role, arg.PageOffset, arg.PageLimit)
 	if err != nil {
@@ -199,6 +281,7 @@ func (q *Queries) ListUsersByRole(ctx context.Context, arg ListUsersByRoleParams
 			&i.Roles,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.EmailVerifiedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -208,6 +291,17 @@ func (q *Queries) ListUsersByRole(ctx context.Context, arg ListUsersByRoleParams
 		return nil, err
 	}
 	return items, nil
+}
+
+const markUserEmailVerified = `-- name: MarkUserEmailVerified :exec
+UPDATE users
+SET email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP)
+WHERE id = $1
+`
+
+func (q *Queries) MarkUserEmailVerified(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, markUserEmailVerified, id)
+	return err
 }
 
 const revokeAllUserRefreshTokens = `-- name: RevokeAllUserRefreshTokens :exec
@@ -253,21 +347,31 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
 SET
-    email = $2,
+    email_verified_at = CASE
+        WHEN email = $1 OR $2::bool THEN email_verified_at
+    END,
+    email = $1,
     name = $3,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
-RETURNING id, email, name, password, roles, created_at, updated_at
+WHERE id = $4
+RETURNING id, email, name, password, roles, created_at, updated_at, email_verified_at
 `
 
 type UpdateUserProfileParams struct {
-	ID    int32  `db:"id" json:"id"`
-	Email string `db:"email" json:"email"`
-	Name  string `db:"name" json:"name"`
+	Email        string `db:"email" json:"email"`
+	KeepVerified bool   `db:"keep_verified" json:"keep_verified"`
+	Name         string `db:"name" json:"name"`
+	ID           int32  `db:"id" json:"id"`
 }
 
+// A changed email is unverified again unless keep_verified is set (an admin vouches for it).
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUserProfile, arg.ID, arg.Email, arg.Name)
+	row := q.db.QueryRow(ctx, updateUserProfile,
+		arg.Email,
+		arg.KeepVerified,
+		arg.Name,
+		arg.ID,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -277,6 +381,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Roles,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.EmailVerifiedAt,
 	)
 	return i, err
 }

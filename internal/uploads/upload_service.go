@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"os"
+	"net/http"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -26,6 +27,8 @@ type UploadConfig struct {
 	MaxFileSize  int64
 	AllowedTypes []string
 	GetFolderID  func(ctx context.Context, userID int32) (int32, error)
+	// Storage holds the file bytes. Nil means LocalStorage on UploadFolder and BaseURL.
+	Storage Storage
 }
 
 // DefaultUploadConfig returns a default configuration
@@ -50,13 +53,44 @@ func DefaultUploadConfig(uploadFolder, baseURL string) *UploadConfig {
 type UploadService struct {
 	queries *db.Queries
 	config  *UploadConfig
+	storage Storage
+}
+
+// PaginatedUploads is one page of a user's uploads
+type PaginatedUploads struct {
+	Data  []db.Upload
+	Total int64
 }
 
 // NewUploadService creates a new upload service
 func NewUploadService(queries *db.Queries, config *UploadConfig) *UploadService {
+	storage := config.Storage
+	if storage == nil {
+		storage = NewLocalStorage(config.UploadFolder, config.BaseURL)
+	}
 	return &UploadService{
 		queries: queries,
 		config:  config,
+		storage: storage,
+	}
+}
+
+// MaxFileSize is the largest upload the service accepts, in bytes.
+func (s *UploadService) MaxFileSize() int64 {
+	return s.config.MaxFileSize
+}
+
+// matchesContent compares what the file claims to be (its extension) with what its first
+// bytes say it is. The extension decides the Content-Type the file is later served with,
+// so an HTML page renamed to .jpg must not get in.
+func matchesContent(fileType, ext, detected string) bool {
+	switch {
+	case fileType == "image":
+		return strings.HasPrefix(detected, "image/")
+	case ext == ".pdf":
+		return detected == "application/pdf"
+	default:
+		return !strings.HasPrefix(detected, "text/html") && !strings.HasPrefix(detected, "text/xml")
 	}
 }
 
@@ -89,22 +123,21 @@ func (s *UploadService) IsValidFileType(filename string) bool {
 	return false
 }
 
-// GenerateRandomName generates a random filename
-func (s *UploadService) GenerateRandomName(originalName string) string {
-	ext := filepath.Ext(originalName)
+// GenerateRandomName generates a random filename that keeps only the extension of the original
+func (s *UploadService) GenerateRandomName(originalName string) (string, error) {
 	randomBytes := make([]byte, 8)
-	rand.Read(randomBytes)
-	randomString := hex.EncodeToString(randomBytes)
-	timestamp := time.Now().Unix()
-	filename := fmt.Sprintf("%d_%s%s", timestamp, randomString, ext)
-	return filename
+	if _, err := rand.Read(randomBytes); err != nil {
+		return "", err
+	}
+	ext := strings.ToLower(filepath.Ext(originalName))
+	return fmt.Sprintf("%d_%s%s", time.Now().Unix(), hex.EncodeToString(randomBytes), ext), nil
 }
 
-// UploadFile uploads a file and stores it in the database
+// UploadFile validates a file, stores it and records it in the database
 func (s *UploadService) UploadFile(ctx context.Context, file *multipart.FileHeader, userID int32) (*db.Upload, error) {
 	if !s.IsValidFileType(file.Filename) {
 		return nil, errs.WrapBadRequest(
-			errs.ErrKeyValidationError,
+			errs.ErrKeyUploadTypeNotAllowed,
 			"File type not allowed",
 			fmt.Errorf("file type not allowed: %s", filepath.Ext(file.Filename)),
 		)
@@ -112,16 +145,38 @@ func (s *UploadService) UploadFile(ctx context.Context, file *multipart.FileHead
 
 	if file.Size > s.config.MaxFileSize {
 		return nil, errs.WrapBadRequest(
-			errs.ErrKeyValidationError,
+			errs.ErrKeyUploadTooLarge,
 			"File too large",
 			fmt.Errorf("file too large: %d bytes (max %d bytes)", file.Size, s.config.MaxFileSize),
-		)
+		).WithDetails(map[string]interface{}{"max_bytes": s.config.MaxFileSize})
 	}
 
 	if file.Size == 0 {
-		return nil, errs.NewBadRequestError(
-			errs.ErrKeyValidationError,
-			"File is empty",
+		return nil, errs.NewBadRequestError(errs.ErrKeyUploadEmpty, "File is empty")
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return nil, errs.WrapInternal(errs.ErrKeyInternalError, "failed to open uploaded file", err)
+	}
+	defer src.Close()
+
+	// The Content-Type header is whatever the client says; the first bytes are not.
+	head := make([]byte, 512)
+	n, err := io.ReadFull(src, head)
+	if err != nil && err != io.ErrUnexpectedEOF {
+		return nil, errs.WrapInternal(errs.ErrKeyInternalError, "failed to read uploaded file", err)
+	}
+	head = head[:n]
+	mimeType := http.DetectContentType(head)
+
+	fileType := s.GetFileType(file.Filename)
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if !matchesContent(fileType, ext, mimeType) {
+		return nil, errs.WrapBadRequest(
+			errs.ErrKeyUploadTypeNotAllowed,
+			"File content does not match its type",
+			fmt.Errorf("extension %s but content is %s", ext, mimeType),
 		)
 	}
 
@@ -130,38 +185,14 @@ func (s *UploadService) UploadFile(ctx context.Context, file *multipart.FileHead
 		return nil, errs.WrapInternal(errs.ErrKeyInternalError, "failed to get folder ID", err)
 	}
 
-	filename := s.GenerateRandomName(file.Filename)
-	fileType := s.GetFileType(file.Filename)
-
-	folderDir := strconv.Itoa(int(folderID))
-	userPath := filepath.Join(s.config.UploadFolder, folderDir)
-
-	if err := os.MkdirAll(userPath, 0755); err != nil {
-		return nil, errs.WrapInternal(errs.ErrKeyInternalError, "failed to create directory", err)
-	}
-
-	filePath := filepath.Join(userPath, filename)
-	relativePath := filepath.Join(folderDir, filename)
-
-	src, err := file.Open()
+	filename, err := s.GenerateRandomName(file.Filename)
 	if err != nil {
-		return nil, errs.WrapInternal(errs.ErrKeyInternalError, "failed to open uploaded file", err)
+		return nil, errs.WrapInternal(errs.ErrKeyInternalError, "failed to generate file name", err)
 	}
-	defer src.Close()
+	relativePath := path.Join(strconv.Itoa(int(folderID)), filename)
 
-	dst, err := os.Create(filePath)
-	if err != nil {
-		return nil, errs.WrapInternal(errs.ErrKeyInternalError, "failed to create destination file", err)
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, src); err != nil {
-		return nil, errs.WrapInternal(errs.ErrKeyInternalError, "failed to copy file", err)
-	}
-
-	mimeType := file.Header.Get("Content-Type")
-	if mimeType == "" {
-		mimeType = "application/octet-stream"
+	if err := s.storage.Save(ctx, relativePath, io.MultiReader(strings.NewReader(string(head)), src)); err != nil {
+		return nil, errs.WrapInternal(errs.ErrKeyInternalError, "failed to store file", err)
 	}
 
 	upload, err := s.queries.CreateUpload(ctx, db.CreateUploadParams{
@@ -169,12 +200,12 @@ func (s *UploadService) UploadFile(ctx context.Context, file *multipart.FileHead
 		FolderID:         folderID,
 		Type:             fileType,
 		RelativePath:     relativePath,
-		OriginalFilename: file.Filename,
+		OriginalFilename: filepath.Base(file.Filename),
 		FileSize:         file.Size,
 		MimeType:         pgtype.Text{String: mimeType, Valid: true},
 	})
 	if err != nil {
-		os.Remove(filePath)
+		_ = s.storage.Delete(ctx, relativePath)
 		return nil, errs.WrapInternal(errs.ErrKeyInternalError, "failed to save upload to database", err)
 	}
 
@@ -209,6 +240,25 @@ func (s *UploadService) ListUploads(ctx context.Context, userID int32) ([]db.Upl
 	return uploads, nil
 }
 
+// ListUploadsPaginated returns one page of a user's uploads, newest first.
+func (s *UploadService) ListUploadsPaginated(ctx context.Context, userID, page, pageSize int32) (*PaginatedUploads, error) {
+	total, err := s.queries.CountUploadsByUserID(ctx, userID)
+	if err != nil {
+		return nil, errs.WrapDatabaseError(err)
+	}
+
+	uploads, err := s.queries.ListUploadsByUserIDPaginated(ctx, db.ListUploadsByUserIDPaginatedParams{
+		UserID: userID,
+		Limit:  pageSize,
+		Offset: (page - 1) * pageSize,
+	})
+	if err != nil {
+		return nil, errs.WrapDatabaseError(err)
+	}
+
+	return &PaginatedUploads{Data: uploads, Total: total}, nil
+}
+
 // DeleteUpload deletes an upload by ID and user ID.
 // This method:
 //   - Verifies the upload exists and belongs to the user
@@ -231,9 +281,8 @@ func (s *UploadService) DeleteUpload(ctx context.Context, uploadID, userID int32
 		return errs.WrapInternal(errs.ErrKeyInternalError, "failed to delete upload", err)
 	}
 
-	filePath := filepath.Join(s.config.UploadFolder, upload.RelativePath)
-	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
-		return errs.WrapInternal(errs.ErrKeyInternalError, "failed to delete file from disk", err)
+	if err := s.storage.Delete(ctx, upload.RelativePath); err != nil {
+		return errs.WrapInternal(errs.ErrKeyInternalError, "failed to delete stored file", err)
 	}
 
 	return nil
@@ -241,10 +290,7 @@ func (s *UploadService) DeleteUpload(ctx context.Context, uploadID, userID int32
 
 // GetFullURL returns the full URL for an upload
 func (s *UploadService) GetFullURL(relativePath string) string {
-	if relativePath == "" {
-		return ""
-	}
-	return fmt.Sprintf("%s/%s", s.config.BaseURL, relativePath)
+	return s.storage.URL(relativePath)
 }
 
 var (

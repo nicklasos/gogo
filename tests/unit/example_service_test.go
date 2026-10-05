@@ -196,7 +196,7 @@ func TestExampleService_ListExamples(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotNil(t, examples)
 			assert.GreaterOrEqual(t, len(examples), 2)
-			
+
 			// Verify examples are in the list
 			exampleIDs := make(map[int32]bool)
 			for _, ex := range examples {

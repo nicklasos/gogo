@@ -9,10 +9,10 @@ import (
 // ErrorResponse represents a structured error response
 type ErrorResponse struct {
 	ErrorKey  string                 `json:"error_key"`
-	Message   string                 `json:"message,omitempty"`
+	Message   string                 `json:"message,omitempty" validate:"optional"`
 	Status    int                    `json:"status"`
-	Details   map[string]interface{} `json:"details,omitempty"`
-	Timestamp string                 `json:"timestamp,omitempty"`
+	Details   map[string]interface{} `json:"details,omitempty" validate:"optional"`
+	Timestamp string                 `json:"timestamp,omitempty" validate:"optional"`
 }
 
 // RespondWithError sends a structured error response

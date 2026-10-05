@@ -18,6 +18,10 @@ const (
 	ErrKeyAuthTokenRequired      = "auth.token_required"
 	ErrKeyAuthUserExists         = "auth.user_exists"
 	ErrKeyAuthInvalidCurrentPass = "auth.invalid_current_password"
+	ErrKeyAuthTooManyRequests    = "auth.too_many_requests"
+	ErrKeyAuthRegistrationClosed = "auth.registration_disabled"
+	ErrKeyAuthInvalidEmailToken  = "auth.invalid_or_expired_link"
+	ErrKeyAuthEmailVerified      = "auth.email_already_verified"
 )
 
 // Users error keys
@@ -35,8 +39,11 @@ const (
 
 // Upload error keys
 const (
-	ErrKeyUploadNotFound  = "uploads.not_found"
-	ErrKeyValidationError = "validation.error"
+	ErrKeyUploadNotFound       = "uploads.not_found"
+	ErrKeyUploadTypeNotAllowed = "uploads.type_not_allowed"
+	ErrKeyUploadTooLarge       = "uploads.too_large"
+	ErrKeyUploadEmpty          = "uploads.empty"
+	ErrKeyValidationError      = "validation.error"
 )
 
 // Validation error keys

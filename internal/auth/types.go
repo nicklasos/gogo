@@ -15,10 +15,27 @@ type LoginRequest struct {
 
 // UserResponse represents user information
 type UserResponse struct {
-	ID    int32    `json:"id"`
-	Email string   `json:"email"`
-	Name  string   `json:"name"`
-	Roles []string `json:"roles"`
+	ID            int32    `json:"id"`
+	Email         string   `json:"email"`
+	Name          string   `json:"name"`
+	Roles         []string `json:"roles"`
+	EmailVerified bool     `json:"email_verified"`
+}
+
+// ForgotPasswordRequest asks for a password reset link
+type ForgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+// ResetPasswordRequest sets a new password with the token from the emailed link
+type ResetPasswordRequest struct {
+	Token    string `json:"token" binding:"required"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+// VerifyEmailRequest confirms an email address with the token from the emailed link
+type VerifyEmailRequest struct {
+	Token string `json:"token" binding:"required"`
 }
 
 // UpdateProfileRequest represents the request to update the current user

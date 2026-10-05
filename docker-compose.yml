@@ -1,0 +1,67 @@
+# Local services for development: `make up`, then run the API on the host with `make dev`.
+# The connection strings in .env.example match these services.
+#
+# `docker compose --profile app up --build` also builds and runs the API in a container.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gogo
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Catches every outgoing email. Inbox: http://localhost:8025
+  # To use it set APP_DEBUG=false, MAIL_HOST=localhost, MAIL_PORT=1025, MAIL_SCHEME=none
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
+  api:
+    profiles: ["app"]
+    build: .
+    environment:
+      DATABASE_URL: postgres://postgres@postgres:5432/gogo?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-not-for-production}
+      APP_ENV: development
+      APP_NAME: ${APP_NAME:-MyApp}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      FILES_BASE_URL: http://localhost:8181/api/files
+      MAIL_HOST: mailpit
+      MAIL_PORT: "1025"
+      MAIL_SCHEME: none
+      MAIL_FROM_ADDRESS: noreply@example.com
+    ports:
+      - "8181:8181"
+    volumes:
+      - uploads-data:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  uploads-data:

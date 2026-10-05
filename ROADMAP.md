@@ -6,24 +6,22 @@ What is worth adding to the skeleton next, in priority order. Each item names th
 
 | Item | Why | Port from |
 |---|---|---|
-| Auth rate limiter + `cache.Increment` | `/auth/login` and `/auth/refresh` can be brute-forced | `smartcity-backoffice-api/internal/middleware/rate_limit.go`, `internal/cache/cache.go` |
-| Config hardening | `getEnvInt` / `getEnvDuration`, refuse a weak `JWT_SECRET`, env-driven token TTLs (access is hardcoded to 7 days), `SetTrustedProxies` | `smartcity-backoffice-api/config/config.go`, `cmd/api/main.go` |
-| TypeScript types generated from OpenAPI | Removes hand-written types in gogo-front; swagger is correct now, so it is unblocked | — |
-| CI + golangci-lint | No pipeline yet; needs Postgres and Redis services, goose, `make test` | — |
-| Dockerfile + compose (Postgres, Redis) | One-command local setup and a deployable image | `sytno/backend/Dockerfile`, `docker-entrypoint.sh` |
-| `ALLOW_REGISTRATION` flag | `/auth/register` is open to anyone | — |
+| golangci-lint | CI runs `gofmt`, `go vet` and the tests; a linter config would catch more | — |
 | Remove `?token=` query auth | Puts JWTs into URLs and access logs; keep only if a project needs WebSockets | `internal/middleware/user_auth.go` |
+| Email normalisation | Login matches the email exactly, while the index is on `LOWER(email)`; lower-case on write and on lookup | — |
+| Refresh token hashing | Refresh tokens are stored in plain text; store a hash like `auth_tokens` does | `internal/auth/auth_service.go` |
 
 ## P2
 
 | Item | Why | Port from |
 |---|---|---|
-| Uploads hardening | Path traversal guard, content sniffing instead of trusting the client MIME type, no directory listing, storage interface (local / S3), optional crop | `smartcity-backoffice-api/internal/uploads/` |
+| S3 / GCS storage | The `Storage` interface is in place with a local implementation only | — |
+| Image crop and resize | Useful once a project has avatars or galleries; needs an imaging library | `smartcity-backoffice-api/internal/uploads/crop.go` |
 | Role editing | Roles are fixed at creation today; add `UpdateUserRoles` with a last-super-admin guard when a project needs it | — |
 | Pagination, sort and filter conventions | Only page parsing exists; every list endpoint reinvents filters | `smartcity-backoffice-api/internal/pagination/` |
 | Constraint registry | Table-driven unique / foreign key constraint → error key, instead of string matching | `sytno/backend/internal/errs/postgres_fk.go` |
 | pgtype helpers | Less boilerplate converting nullable columns | `sytno/backend/internal/utils/pgtype.go` |
-| Mail + password reset | Needs an SMTP service and a reset-token table | `smartcity-api/internal/mail/mail.go` |
+| Mail templates, translations and queueing | The two auth emails are plain English, and `Send` blocks on SMTP | — |
 | Seeders | `cli seed` for sample data | — |
 | Savepoint-per-request in tests | A failed statement aborts the shared test transaction, so such a request must be last in a test | — |
 

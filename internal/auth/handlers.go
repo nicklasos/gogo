@@ -29,14 +29,16 @@ func userResponseFromDB(user *db.User) UserResponse {
 		roles = []string{}
 	}
 	return UserResponse{
-		ID:    user.ID,
-		Email: user.Email,
-		Name:  user.Name,
-		Roles: roles,
+		ID:            user.ID,
+		Email:         user.Email,
+		Name:          user.Name,
+		Roles:         roles,
+		EmailVerified: user.EmailVerifiedAt.Valid,
 	}
 }
 
 // Register creates a new user account
+//
 //	@Summary		Register new user
 //	@Description	Create a new user account with email and password
 //	@Tags			auth
@@ -73,6 +75,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 }
 
 // Login authenticates a user
+//
 //	@Summary		Login user
 //	@Description	Authenticate user with email and password
 //	@Tags			auth
@@ -100,6 +103,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	middleware.MarkAuthSuccess(c)
+
 	response := LoginResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
@@ -110,6 +115,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 // RefreshToken refreshes the access token using a refresh token
+//
 //	@Summary		Refresh access token
 //	@Description	Refresh the access token using a valid refresh token
 //	@Tags			auth
@@ -146,6 +152,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 }
 
 // GetMe returns the current authenticated user's information
+//
 //	@Summary		Get current user info
 //	@Description	Get information about the currently authenticated user
 //	@Tags			auth
@@ -178,6 +185,7 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 }
 
 // UpdateMe updates the current authenticated user's name and email
+//
 //	@Summary		Update current user
 //	@Description	Update name and email for the currently authenticated user
 //	@Tags			auth
@@ -214,6 +222,7 @@ func (h *AuthHandler) UpdateMe(c *gin.Context) {
 }
 
 // UpdatePassword updates the current authenticated user's password
+//
 //	@Summary		Change current user password
 //	@Description	Change password for the currently authenticated user. Revokes all refresh tokens.
 //	@Tags			auth
@@ -250,7 +259,130 @@ func (h *AuthHandler) UpdatePassword(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// ForgotPassword emails a password reset link
+//
+//	@Summary		Request a password reset
+//	@Description	Emails a single-use reset link when the address belongs to an account. Always answers 200, so it does not reveal which emails are registered.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		ForgotPasswordRequest	true	"Account email"
+//	@Success		200		{object}	MessageResponse
+//	@Failure		400		{object}	errs.ErrorResponse
+//	@Failure		429		{object}	errs.ErrorResponse
+//	@Router			/api/v1/auth/forgot-password [post]
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errs.RespondWithValidationError(c, err)
+		return
+	}
+
+	h.service.RequestPasswordReset(c.Request.Context(), req.Email)
+
+	var response MessageResponse
+	response.Data.Message = "If the email belongs to an account, a reset link has been sent"
+	c.JSON(http.StatusOK, response)
+}
+
+// ResetPassword sets a new password from an emailed link
+//
+//	@Summary		Reset password
+//	@Description	Sets a new password with the token from the emailed link. The link works once; all sessions are signed out.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		ResetPasswordRequest	true	"Token and new password"
+//	@Success		200		{object}	MessageResponse
+//	@Failure		400		{object}	errs.ErrorResponse
+//	@Failure		429		{object}	errs.ErrorResponse
+//	@Router			/api/v1/auth/reset-password [post]
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errs.RespondWithValidationError(c, err)
+		return
+	}
+
+	if err := h.service.ResetPassword(c.Request.Context(), req.Token, req.Password); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to reset password", "error", err)
+		errs.RespondWithError(c, err)
+		return
+	}
+
+	var response MessageResponse
+	response.Data.Message = "Password updated successfully"
+	c.JSON(http.StatusOK, response)
+}
+
+// VerifyEmail confirms an email address from an emailed link
+//
+//	@Summary		Verify email
+//	@Description	Confirms an email address with the token from the emailed link
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		VerifyEmailRequest	true	"Token"
+//	@Success		200		{object}	MessageResponse
+//	@Failure		400		{object}	errs.ErrorResponse
+//	@Failure		429		{object}	errs.ErrorResponse
+//	@Router			/api/v1/auth/verify-email [post]
+func (h *AuthHandler) VerifyEmail(c *gin.Context) {
+	var req VerifyEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errs.RespondWithValidationError(c, err)
+		return
+	}
+
+	if err := h.service.VerifyEmail(c.Request.Context(), req.Token); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to verify email", "error", err)
+		errs.RespondWithError(c, err)
+		return
+	}
+
+	var response MessageResponse
+	response.Data.Message = "Email verified"
+	c.JSON(http.StatusOK, response)
+}
+
+// ResendVerification sends a new email verification link to the current user
+//
+//	@Summary		Resend verification email
+//	@Description	Sends a new verification link to the current user's email address
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	errs.ErrorResponse
+//	@Failure		401	{object}	errs.ErrorResponse
+//	@Failure		429	{object}	errs.ErrorResponse
+//	@Router			/api/v1/auth/me/verify-email [post]
+func (h *AuthHandler) ResendVerification(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		errs.RespondWithUnauthorized(c, "Unauthorized")
+		return
+	}
+
+	if err := h.service.ResendEmailVerification(c.Request.Context(), userID); err != nil {
+		h.logger.ErrorContext(c.Request.Context(), "Failed to resend verification email", "error", err, "user_id", userID)
+		errs.RespondWithError(c, err)
+		return
+	}
+
+	var response MessageResponse
+	response.Data.Message = "Verification email sent"
+	c.JSON(http.StatusOK, response)
+}
+
+// RegistrationDisabled answers POST /auth/register when ALLOW_REGISTRATION is off
+func RegistrationDisabled(c *gin.Context) {
+	errs.RespondWithError(c, errs.NewForbiddenError(errs.ErrKeyAuthRegistrationClosed, "Registration is disabled"))
+}
+
 // Logout logs out the current user
+//
 //	@Summary		Logout user
 //	@Description	Logout the currently authenticated user
 //	@Tags			auth

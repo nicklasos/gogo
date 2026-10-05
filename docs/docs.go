@@ -16,14 +16,60 @@ const docTemplate = `{
             "email": "support@swagger.io"
         },
         "license": {
-            "name": "Apache 2.0",
-            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+            "name": "WTFPL",
+            "url": "http://www.wtfpl.net/"
         },
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/auth/forgot-password": {
+            "post": {
+                "description": "Emails a single-use reset link when the address belongs to an account. Always answers 200, so it does not reveal which emails are registered.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Request a password reset",
+                "parameters": [
+                    {
+                        "description": "Account email",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth.ForgotPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/login": {
             "post": {
                 "description": "Authenticate user with email and password",
@@ -262,6 +308,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/auth/me/verify-email": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Sends a new verification link to the current user's email address",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Resend verification email",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/refresh": {
             "post": {
                 "description": "Refresh the access token using a valid refresh token",
@@ -353,6 +445,98 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/reset-password": {
+            "post": {
+                "description": "Sets a new password with the token from the emailed link. The link works once; all sessions are signed out.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Reset password",
+                "parameters": [
+                    {
+                        "description": "Token and new password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth.ResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/verify-email": {
+            "post": {
+                "description": "Confirms an email address with the token from the emailed link",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Verify email",
+                "parameters": [
+                    {
+                        "description": "Token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth.VerifyEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/app_internal_errs.ErrorResponse"
                         }
@@ -672,7 +856,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "List all uploads for the authenticated user",
+                "description": "Paginated list of the authenticated user's uploads, newest first",
                 "produces": [
                     "application/json"
                 ],
@@ -680,18 +864,39 @@ const docTemplate = `{
                     "uploads"
                 ],
                 "summary": "List uploads",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_uploads.UploadsListResponse"
+                            "$ref": "#/definitions/internal_uploads.PaginatedUploadsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
                         }
                     }
                 }
@@ -732,22 +937,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
                         }
                     }
                 }
@@ -787,15 +989,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
                         }
                     }
                 }
@@ -833,15 +1033,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/app_internal_errs.ErrorResponse"
                         }
                     }
                 }
@@ -1209,6 +1407,10 @@ const docTemplate = `{
     "definitions": {
         "app_internal_errs.ErrorResponse": {
             "type": "object",
+            "required": [
+                "error_key",
+                "status"
+            ],
             "properties": {
                 "details": {
                     "type": "object",
@@ -1230,6 +1432,12 @@ const docTemplate = `{
         },
         "internal.PaginationMeta": {
             "type": "object",
+            "required": [
+                "current_page",
+                "last_page",
+                "per_page",
+                "total"
+            ],
             "properties": {
                 "current_page": {
                     "type": "integer"
@@ -1245,8 +1453,22 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_auth.ForgotPasswordRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_auth.LoginDataResponse": {
             "type": "object",
+            "required": [
+                "data"
+            ],
             "properties": {
                 "data": {
                     "$ref": "#/definitions/internal_auth.LoginResponse"
@@ -1270,6 +1492,11 @@ const docTemplate = `{
         },
         "internal_auth.LoginResponse": {
             "type": "object",
+            "required": [
+                "access_token",
+                "refresh_token",
+                "user"
+            ],
             "properties": {
                 "access_token": {
                     "type": "string"
@@ -1284,9 +1511,15 @@ const docTemplate = `{
         },
         "internal_auth.MessageResponse": {
             "type": "object",
+            "required": [
+                "data"
+            ],
             "properties": {
                 "data": {
                     "type": "object",
+                    "required": [
+                        "message"
+                    ],
                     "properties": {
                         "message": {
                             "type": "string"
@@ -1297,6 +1530,9 @@ const docTemplate = `{
         },
         "internal_auth.RefreshTokenDataResponse": {
             "type": "object",
+            "required": [
+                "data"
+            ],
             "properties": {
                 "data": {
                     "$ref": "#/definitions/internal_auth.RefreshTokenResponse"
@@ -1316,6 +1552,10 @@ const docTemplate = `{
         },
         "internal_auth.RefreshTokenResponse": {
             "type": "object",
+            "required": [
+                "access_token",
+                "refresh_token"
+            ],
             "properties": {
                 "access_token": {
                     "type": "string"
@@ -1327,6 +1567,9 @@ const docTemplate = `{
         },
         "internal_auth.RegisterDataResponse": {
             "type": "object",
+            "required": [
+                "data"
+            ],
             "properties": {
                 "data": {
                     "$ref": "#/definitions/internal_auth.RegisterResponse"
@@ -1355,6 +1598,11 @@ const docTemplate = `{
         },
         "internal_auth.RegisterResponse": {
             "type": "object",
+            "required": [
+                "access_token",
+                "refresh_token",
+                "user"
+            ],
             "properties": {
                 "access_token": {
                     "type": "string"
@@ -1364,6 +1612,22 @@ const docTemplate = `{
                 },
                 "user": {
                     "$ref": "#/definitions/internal_auth.UserResponse"
+                }
+            }
+        },
+        "internal_auth.ResetPasswordRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "token"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "minLength": 8
+                },
+                "token": {
+                    "type": "string"
                 }
             }
         },
@@ -1400,6 +1664,9 @@ const docTemplate = `{
         },
         "internal_auth.UserDataResponse": {
             "type": "object",
+            "required": [
+                "data"
+            ],
             "properties": {
                 "data": {
                     "$ref": "#/definitions/internal_auth.UserResponse"
@@ -1408,9 +1675,19 @@ const docTemplate = `{
         },
         "internal_auth.UserResponse": {
             "type": "object",
+            "required": [
+                "email",
+                "email_verified",
+                "id",
+                "name",
+                "roles"
+            ],
             "properties": {
                 "email": {
                     "type": "string"
+                },
+                "email_verified": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "integer"
@@ -1423,6 +1700,17 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "internal_auth.VerifyEmailRequest": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "token": {
+                    "type": "string"
                 }
             }
         },
@@ -1442,6 +1730,9 @@ const docTemplate = `{
         },
         "internal_example.ExampleDataResponse": {
             "type": "object",
+            "required": [
+                "data"
+            ],
             "properties": {
                 "data": {
                     "$ref": "#/definitions/internal_example.ExampleResponse"
@@ -1450,6 +1741,14 @@ const docTemplate = `{
         },
         "internal_example.ExampleResponse": {
             "type": "object",
+            "required": [
+                "created_at",
+                "description",
+                "id",
+                "title",
+                "updated_at",
+                "user_id"
+            ],
             "properties": {
                 "created_at": {
                     "type": "string"
@@ -1473,9 +1772,15 @@ const docTemplate = `{
         },
         "internal_example.MessageResponse": {
             "type": "object",
+            "required": [
+                "data"
+            ],
             "properties": {
                 "data": {
                     "type": "object",
+                    "required": [
+                        "message"
+                    ],
                     "properties": {
                         "message": {
                             "type": "string"
@@ -1486,6 +1791,10 @@ const docTemplate = `{
         },
         "internal_example.PaginatedExamplesResponse": {
             "type": "object",
+            "required": [
+                "data",
+                "pagination"
+            ],
             "properties": {
                 "data": {
                     "type": "array",
@@ -1514,9 +1823,15 @@ const docTemplate = `{
         },
         "internal_uploads.MessageResponse": {
             "type": "object",
+            "required": [
+                "data"
+            ],
             "properties": {
                 "data": {
                     "type": "object",
+                    "required": [
+                        "message"
+                    ],
                     "properties": {
                         "message": {
                             "type": "string"
@@ -1525,8 +1840,29 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_uploads.PaginatedUploadsResponse": {
+            "type": "object",
+            "required": [
+                "data",
+                "pagination"
+            ],
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_uploads.UploadResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/internal.PaginationMeta"
+                }
+            }
+        },
         "internal_uploads.UploadDataResponse": {
             "type": "object",
+            "required": [
+                "data"
+            ],
             "properties": {
                 "data": {
                     "$ref": "#/definitions/internal_uploads.UploadResponse"
@@ -1535,6 +1871,19 @@ const docTemplate = `{
         },
         "internal_uploads.UploadResponse": {
             "type": "object",
+            "required": [
+                "created_at",
+                "file_size",
+                "folder_id",
+                "full_url",
+                "id",
+                "mime_type",
+                "original_filename",
+                "relative_path",
+                "type",
+                "updated_at",
+                "user_id"
+            ],
             "properties": {
                 "created_at": {
                     "type": "string"
@@ -1561,24 +1910,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "image",
+                        "video",
+                        "audio",
+                        "document",
+                        "other"
+                    ]
                 },
                 "updated_at": {
                     "type": "string"
                 },
                 "user_id": {
                     "type": "integer"
-                }
-            }
-        },
-        "internal_uploads.UploadsListResponse": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_uploads.UploadResponse"
-                    }
                 }
             }
         },
@@ -1613,9 +1958,15 @@ const docTemplate = `{
         },
         "internal_users.MessageResponse": {
             "type": "object",
+            "required": [
+                "data"
+            ],
             "properties": {
                 "data": {
                     "type": "object",
+                    "required": [
+                        "message"
+                    ],
                     "properties": {
                         "message": {
                             "type": "string"
@@ -1626,6 +1977,10 @@ const docTemplate = `{
         },
         "internal_users.PaginatedUsersResponse": {
             "type": "object",
+            "required": [
+                "data",
+                "pagination"
+            ],
             "properties": {
                 "data": {
                     "type": "array",
@@ -1667,6 +2022,9 @@ const docTemplate = `{
         },
         "internal_users.UserDataResponse": {
             "type": "object",
+            "required": [
+                "data"
+            ],
             "properties": {
                 "data": {
                     "$ref": "#/definitions/internal_users.UserResponse"
@@ -1675,12 +2033,24 @@ const docTemplate = `{
         },
         "internal_users.UserResponse": {
             "type": "object",
+            "required": [
+                "created_at",
+                "email",
+                "email_verified",
+                "id",
+                "name",
+                "roles",
+                "updated_at"
+            ],
             "properties": {
                 "created_at": {
                     "type": "string"
                 },
                 "email": {
                     "type": "string"
+                },
+                "email_verified": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "integer"

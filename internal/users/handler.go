@@ -34,12 +34,13 @@ func userResponseFromDB(user db.User) UserResponse {
 		roles = []string{}
 	}
 	return UserResponse{
-		ID:        user.ID,
-		Email:     user.Email,
-		Name:      user.Name,
-		Roles:     roles,
-		CreatedAt: user.CreatedAt.Time.Format(timeFormat),
-		UpdatedAt: user.UpdatedAt.Time.Format(timeFormat),
+		ID:            user.ID,
+		Email:         user.Email,
+		Name:          user.Name,
+		Roles:         roles,
+		EmailVerified: user.EmailVerifiedAt.Valid,
+		CreatedAt:     user.CreatedAt.Time.Format(timeFormat),
+		UpdatedAt:     user.UpdatedAt.Time.Format(timeFormat),
 	}
 }
 

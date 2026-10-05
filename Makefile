@@ -22,6 +22,16 @@ run-cron-test-db:
 run-test-db:
 	go run ./cmd/api --test-db
 
+# Local Postgres, Redis and Mailpit in Docker (see docker-compose.yml)
+up:
+	docker compose up -d --wait
+
+down:
+	docker compose down
+
+docker-build:
+	docker build -t gogo-api .
+
 sqlc:
 	sqlc generate
 
@@ -36,7 +46,7 @@ schema-dump:
 	@echo "Schema dumped successfully!"
 
 swagger:
-	swag init --parseDependency --parseInternal -g cmd/api/main.go
+	swag init --parseDependency --parseInternal --requiredByDefault -g cmd/api/main.go
 
 # Apply migrations to TEST_DATABASE_URL before tests so schema matches migrations/
 test:
@@ -160,6 +170,10 @@ cli-test-db:
 cli-create-user:
 	go run ./cmd/cli create-user --email "$(EMAIL)" --password "$(PASSWORD)" $(if $(NAME),--name "$(NAME)") $(if $(ROLE),--role "$(ROLE)")
 
+# Usage: make cli-mail TO=you@example.com
+cli-mail:
+	go run ./cmd/cli mail -to "$(TO)"
+
 # CLI help
 cli-help:
 	go run ./cmd/cli help
@@ -196,6 +210,9 @@ help:
 	@echo "Gogo API Template - available targets:"
 	@echo ""
 	@echo "  Development:"
+	@echo "    up                  Start Postgres, Redis and Mailpit in Docker"
+	@echo "    down                Stop them"
+	@echo "    docker-build        Build the API image"
 	@echo "    run                 Start API server"
 	@echo "    run-test-db         Start API with TEST_DATABASE_URL"
 	@echo "    dev                 Hot reload (air)"
@@ -216,6 +233,7 @@ help:
 	@echo "    sqlc-install        Install sqlc CLI"
 	@echo "    schema-dump         Dump schema to internal/db/schema.sql"
 	@echo "    cli-create-user     Create a user (EMAIL=, PASSWORD=, NAME=, ROLE=)"
+	@echo "    cli-mail            Send a test email (TO=)"
 	@echo ""
 	@echo "  Testing:"
 	@echo "    test                Run all tests (auto-migrates test DB)"
@@ -232,4 +250,4 @@ help:
 	@echo "    supervisor-restart  Restart supervisord program"
 	@echo "    help                Show this help"
 
-.PHONY: run dev build build-cron build-cli run-cron run-cron-test-db run-test-db sqlc sqlc-install schema-dump swagger test test-unit test-integration test-verbose test-coverage test-db-setup test-db-reset test-with-db test-migrate-up test-migrate-down test-migrate-status fmt tidy clean air-install migrate-up migrate-down migrate-status migrate-reset migrate-create migrate-install cli-migrate-up cli-migrate-down cli-migrate-status cli-migrate-create cli-migrate-test-up cli-migrate-test-down cli-migrate-test-status cli-test cli-test-db cli-create-user cli-help supervisor-restart supervisor-status supervisor-stop supervisor-start supervisor-logs supervisor-error-logs help
+.PHONY: up down docker-build run dev build build-cron build-cli run-cron run-cron-test-db run-test-db sqlc sqlc-install schema-dump swagger test test-unit test-integration test-verbose test-coverage test-db-setup test-db-reset test-with-db test-migrate-up test-migrate-down test-migrate-status fmt tidy clean air-install migrate-up migrate-down migrate-status migrate-reset migrate-create migrate-install cli-migrate-up cli-migrate-down cli-migrate-status cli-migrate-create cli-migrate-test-up cli-migrate-test-down cli-migrate-test-status cli-test cli-test-db cli-create-user cli-mail cli-help supervisor-restart supervisor-status supervisor-stop supervisor-start supervisor-logs supervisor-error-logs help

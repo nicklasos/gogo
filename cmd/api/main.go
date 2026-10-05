@@ -17,6 +17,7 @@ import (
 	"app/internal/cache"
 	"app/internal/db"
 	"app/internal/logger"
+	"app/internal/mail"
 	"app/internal/redis"
 	"app/internal/scheduler"
 	"app/internal/server"
@@ -34,8 +35,8 @@ import (
 // @contact.url    http://www.swagger.io/support
 // @contact.email  support@swagger.io
 
-// @license.name  Apache 2.0
-// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+// @license.name  WTFPL
+// @license.url   http://www.wtfpl.net/
 
 // @host      localhost:8181
 // @BasePath  /
@@ -68,8 +69,8 @@ func main() {
 		cfg.Port = *port
 	}
 
-	if cfg.JWTSecret == "" {
-		log.Fatal("JWT_SECRET environment variable is required")
+	if err := cfg.ValidateJWTSecret(); err != nil {
+		log.Fatal(err)
 	}
 
 	logger, err := logger.New(logger.Config{
@@ -89,6 +90,10 @@ func main() {
 		"environment", cfg.Environment,
 		"debug", cfg.Debug,
 	)
+
+	if cfg.JWTSecretIsWeak() {
+		logger.Warn("JWT_SECRET is weak: fine for local development, refused when APP_ENV=production")
+	}
 
 	database, err := db.NewConnection(cfg)
 	if err != nil {
@@ -115,6 +120,7 @@ func main() {
 		Tx:      db.NewTxRunner(database, queries),
 		Cache:   cache.NewRedisCache(redisClient, cfg.AppName+":"),
 		Logger:  logger,
+		Mail:    mail.NewService(cfg, logger),
 		Api:     r.Group("/api/v1"),
 		Images:  internal.NewImageService(cfg.FilesBaseURL),
 	}

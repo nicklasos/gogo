@@ -40,6 +40,9 @@ logs/*
 # Temporary files and build artifacts
 tmp/
 
+# Local file storage (UPLOAD_FOLDER)
+uploads/
+
 # Database files (if using SQLite)
 *.db
 *.sqlite

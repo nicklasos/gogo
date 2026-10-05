@@ -2,8 +2,8 @@ package integration
 
 import (
 	"app/internal/auth"
-	"app/internal/example"
 	"app/internal/db"
+	"app/internal/example"
 	"app/tests/helpers"
 	"context"
 	"net/http"
@@ -178,7 +178,7 @@ func TestExampleAPI_ListExamples(t *testing.T) {
 
 			token := getAuthToken(t, server)
 			userID := getUserIDFromToken(t, ctx, tx, "test@example.com")
-			
+
 			// Create multiple examples
 			for i := 0; i < 5; i++ {
 				helpers.CreateTestExample(t, ctx, tx, userID)

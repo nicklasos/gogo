@@ -73,6 +73,8 @@ func RunCreateUser(app *internal.CLIApp, args []string) {
 		Name:     *name,
 		Password: string(hashedPassword),
 		Roles:    []string{*role},
+
+		EmailVerified: true,
 	})
 	if err != nil {
 		if domainErr := errs.DomainErrorFromPostgresUniqueViolation(err); domainErr != nil {

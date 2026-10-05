@@ -40,11 +40,12 @@ type Upload struct {
 }
 
 type User struct {
-	ID        int32            `db:"id" json:"id"`
-	Email     string           `db:"email" json:"email"`
-	Name      string           `db:"name" json:"name"`
-	Password  string           `db:"password" json:"password"`
-	Roles     []string         `db:"roles" json:"roles"`
-	CreatedAt pgtype.Timestamp `db:"created_at" json:"created_at"`
-	UpdatedAt pgtype.Timestamp `db:"updated_at" json:"updated_at"`
+	ID              int32            `db:"id" json:"id"`
+	Email           string           `db:"email" json:"email"`
+	Name            string           `db:"name" json:"name"`
+	Password        string           `db:"password" json:"password"`
+	Roles           []string         `db:"roles" json:"roles"`
+	CreatedAt       pgtype.Timestamp `db:"created_at" json:"created_at"`
+	UpdatedAt       pgtype.Timestamp `db:"updated_at" json:"updated_at"`
+	EmailVerifiedAt pgtype.Timestamp `db:"email_verified_at" json:"email_verified_at"`
 }

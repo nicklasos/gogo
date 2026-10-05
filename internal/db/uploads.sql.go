@@ -11,6 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countUploadsByUserID = `-- name: CountUploadsByUserID :one
+SELECT count(*) FROM uploads
+WHERE user_id = $1
+`
+
+func (q *Queries) CountUploadsByUserID(ctx context.Context, userID int32) (int64, error) {
+	row := q.db.QueryRow(ctx, countUploadsByUserID, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createUpload = `-- name: CreateUpload :one
 INSERT INTO uploads (
     user_id, folder_id, type, relative_path, original_filename, file_size, mime_type
@@ -190,6 +202,50 @@ ORDER BY created_at DESC
 
 func (q *Queries) ListUploadsByUserID(ctx context.Context, userID int32) ([]Upload, error) {
 	rows, err := q.db.Query(ctx, listUploadsByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Upload
+	for rows.Next() {
+		var i Upload
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.FolderID,
+			&i.Type,
+			&i.RelativePath,
+			&i.OriginalFilename,
+			&i.FileSize,
+			&i.MimeType,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUploadsByUserIDPaginated = `-- name: ListUploadsByUserIDPaginated :many
+SELECT id, user_id, folder_id, type, relative_path, original_filename, file_size, mime_type, created_at, updated_at FROM uploads
+WHERE user_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListUploadsByUserIDPaginatedParams struct {
+	UserID int32 `db:"user_id" json:"user_id"`
+	Limit  int32 `db:"limit" json:"limit"`
+	Offset int32 `db:"offset" json:"offset"`
+}
+
+func (q *Queries) ListUploadsByUserIDPaginated(ctx context.Context, arg ListUploadsByUserIDPaginatedParams) ([]Upload, error) {
+	rows, err := q.db.Query(ctx, listUploadsByUserIDPaginated, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

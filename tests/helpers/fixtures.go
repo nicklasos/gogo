@@ -192,3 +192,9 @@ func GetTestLogger(t *testing.T) *logger.Logger {
 	require.NoError(t, err, "Failed to create test logger")
 	return testLogger
 }
+
+// TestJPEG is a minimal payload that is recognised as a JPEG image by content sniffing.
+var TestJPEG = append([]byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00}, []byte("test image content")...)
+
+// TestPDF is a minimal payload that is recognised as a PDF document.
+var TestPDF = []byte("%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n")

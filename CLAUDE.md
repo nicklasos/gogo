@@ -13,12 +13,12 @@
 gogo/
 ├── cmd/api/main.go              # Main application entry (--port, --test-db)
 ├── cmd/cron/main.go             # Standalone scheduler
-├── cmd/cli/main.go              # CLI (migrate, create-user, smoke test); global --test flag
+├── cmd/cli/main.go              # CLI (migrate, create-user, mail, smoke test); global --test flag
 ├── config/
 │   ├── config.go                # Env → Config
 │   └── testdb.go                # Test-database safety guard
 ├── internal/
-│   ├── app.go                   # App context with DB, Tx, Cache, Logger, Images, AuthMiddleware
+│   ├── app.go                   # App context with DB, Tx, Cache, Logger, Mail, Images, AuthMiddleware
 │   ├── server/server.go         # NewEngine (middleware) + RegisterRoutes (the module list)
 │   ├── images.go                # Relative path → public URL helper
 │   ├── auth/                    # Authentication module
@@ -40,6 +40,7 @@ gogo/
 │   │   ├── logging.go           # RequestID, Recovery, ErrorHandler
 │   │   └── pagination.go        # Page + cursor pagination
 │   ├── cache/                   # RedisCache + MemoryCache
+│   ├── mail/                    # SMTP Service + MemorySender (tests)
 │   ├── errs/                    # Domain errors + WrapDatabaseError
 │   ├── scheduler/               # Cron (cleanup refresh tokens)
 │   └── responses.go             # PaginationMeta helper
@@ -54,7 +55,7 @@ gogo/
 - **Queries**: SQL queries managed by sqlc, type-safe database operations
 
 ## Technology Stack
-- Go 1.24+
+- Go 1.25+
 - Gin
 - PostgreSQL 15
 - pgx/v5
@@ -101,6 +102,24 @@ err := s.tx.WithTx(ctx, func(q *db.Queries) error {
 ```
 In tests the runner is built on the test transaction, so `WithTx` becomes a savepoint.
 
+## Auth
+- Settings come from `config` and reach the module as `auth.Options` in `auth/routes.go`.
+- Emailed links (password reset, email verification) are rows in `auth_tokens`: single-use, expiring, stored as SHA-256 hashes. Issue with `issueEmailToken`, redeem with `consumeEmailToken` inside `WithTx`.
+- `forgot-password` must never reveal whether an email exists: no error, no different status.
+- `middleware.AuthRateLimit` guards login (call `middleware.MarkAuthSuccess(c)` on success); `middleware.RateLimit(cache, log, scope, limit, window)` is the generic per-IP limiter for anything else.
+- A 401 from an authenticated route makes clients try a token refresh, so use 400 or 403 for anything that is not "this session is invalid".
+- Registration is a 403 unless `ALLOW_REGISTRATION=true`.
+
+## Uploads
+- Go through `UploadService`; file bytes go through the `Storage` interface (`LocalStorage` by default). Never build disk paths from request data yourself: `LocalStorage.Resolve` is the traversal guard.
+- New allowed extensions go in `DefaultUploadConfig`; `matchesContent` decides what content an extension must have.
+
+## Mail
+- Services take a `mail.Sender` (from `app.Mail`) and call `Send(ctx, mail.Message{To, Subject, Text, HTML})`.
+- `Send` only logs when `APP_DEBUG=true`; `mail.Service.SendLive` always dials SMTP (used by `make cli-mail TO=...`).
+- Tests get a `mail.MemorySender` from `CreateTestServer`; assert on `server.Mail.Sent()`. Never dial SMTP from a test.
+- Send after the database work has committed, not inside `WithTx`.
+
 ## Context Patterns
 
 ### User ID from Context
@@ -118,6 +137,7 @@ Use `middleware.GetUserIDFromContext(c)` in handlers to get authenticated user I
 
 ### Rule
 - **All request/response types** go in `types.go` within each module
+- Swagger marks every field required (`--requiredByDefault`), because gogo-front generates its TypeScript types from it. Tag a field that may be absent with `validate:"optional"`, and an enum with `enums:"a,b,c"`.
 - **Service types** (e.g., `PaginatedExamplesResult`) are defined in service files
 - **Handlers** use types from `types.go` for requests/responses
 - **Services** use internal types and convert to handler types
@@ -151,7 +171,8 @@ make test             # Run all tests (auto-migrates test DB)
 make cli-create-user EMAIL=a@b.c PASSWORD=secret123   # Create a user (default role super-admin)
 make migrate-up       # Apply migrations
 make sqlc             # Generate sqlc code
-make swagger          # Generate API docs
+make swagger          # Generate API docs (then run `make api-types` in gogo-front)
+make up / make down   # Postgres, Redis and Mailpit in Docker
 ```
 
 ## Code Conventions
@@ -182,6 +203,7 @@ make swagger          # Generate API docs
 - **One transaction per test** - a failed statement (for example a unique violation) aborts it, so make that request the last one in the test
 - **Same wiring as production** - `CreateTestServer` uses `server.NewEngine` and `server.RegisterRoutes`
 - **MemoryCache** - Tests use in-memory cache (no Redis required)
+- **MemorySender** - Tests collect mail in memory (`server.Mail.Sent()`)
 - **GenerateTestJWT** - Helper for authenticated integration requests
 - **CreateTestUserWithRoles** - Fixture for role-specific callers
 

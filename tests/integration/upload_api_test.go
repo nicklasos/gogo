@@ -26,7 +26,7 @@ func TestUploadAPI_UploadFile(t *testing.T) {
 			userID := getUserIDFromToken(t, ctx, tx, "test@example.com")
 
 			// Create a test file
-			fileContent := []byte("test image content")
+			fileContent := helpers.TestJPEG
 			body := &bytes.Buffer{}
 			writer := multipart.NewWriter(body)
 			part, err := writer.CreateFormFile("file", "test.jpg")
@@ -69,7 +69,7 @@ func TestUploadAPI_UploadFile(t *testing.T) {
 			defer server.Close()
 
 			// Create a test file
-			fileContent := []byte("test image content")
+			fileContent := helpers.TestJPEG
 			body := &bytes.Buffer{}
 			writer := multipart.NewWriter(body)
 			part, err := writer.CreateFormFile("file", "test.jpg")

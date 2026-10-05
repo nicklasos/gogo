@@ -27,7 +27,7 @@ func TestUploadService_UploadFile(t *testing.T) {
 			service := uploads.NewUploadService(queries, config)
 
 			// Create a test file
-			fileContent := []byte("test file content")
+			fileContent := helpers.TestJPEG
 			fileHeader := createTestFileHeader(t, "test.jpg", fileContent, "image/jpeg")
 
 			// Test: Upload file
@@ -59,7 +59,7 @@ func TestUploadService_UploadFile(t *testing.T) {
 			service := uploads.NewUploadService(queries, config)
 
 			// Create a test file with invalid extension
-			fileContent := []byte("test file content")
+			fileContent := helpers.TestJPEG
 			fileHeader := createTestFileHeader(t, "test.exe", fileContent, "application/x-msdownload")
 
 			// Test: Upload file
@@ -215,7 +215,7 @@ func TestUploadService_DeleteUpload(t *testing.T) {
 			service := uploads.NewUploadService(queries, config)
 
 			// Create a test file and upload it
-			fileContent := []byte("test file content")
+			fileContent := helpers.TestJPEG
 			fileHeader := createTestFileHeader(t, "test.jpg", fileContent, "image/jpeg")
 			upload, err := service.UploadFile(ctx, fileHeader, user.ID)
 			require.NoError(t, err)

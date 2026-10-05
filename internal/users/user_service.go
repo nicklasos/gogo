@@ -87,6 +87,8 @@ func (s *UserService) Create(ctx context.Context, callerRoles []string, req Crea
 		Name:     req.Name,
 		Password: string(hashedPassword),
 		Roles:    []string{req.Role},
+		// The admin creating the account vouches for the address
+		EmailVerified: true,
 	})
 	if err != nil {
 		if domainErr := errs.DomainErrorFromPostgresUniqueViolation(err); domainErr != nil {
@@ -103,9 +105,10 @@ func (s *UserService) Update(ctx context.Context, callerRoles []string, id int32
 	}
 
 	user, err := s.queries.UpdateUserProfile(ctx, db.UpdateUserProfileParams{
-		ID:    id,
-		Email: req.Email,
-		Name:  req.Name,
+		ID:           id,
+		Email:        req.Email,
+		Name:         req.Name,
+		KeepVerified: true,
 	})
 	if err != nil {
 		if domainErr := errs.DomainErrorFromPostgresUniqueViolation(err); domainErr != nil {

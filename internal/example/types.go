@@ -7,13 +7,13 @@ import (
 // CreateExampleRequest represents the request to create an example
 type CreateExampleRequest struct {
 	Title       string `json:"title" binding:"required"`
-	Description string `json:"description"`
+	Description string `json:"description" validate:"optional"`
 }
 
 // UpdateExampleRequest represents the request to update an example
 type UpdateExampleRequest struct {
 	Title       string `json:"title" binding:"required"`
-	Description string `json:"description"`
+	Description string `json:"description" validate:"optional"`
 }
 
 // ExampleResponse represents example information
@@ -33,7 +33,7 @@ type ExampleDataResponse struct {
 
 // PaginatedExamplesResponse wraps paginated examples in response
 type PaginatedExamplesResponse struct {
-	Data       []ExampleResponse      `json:"data"`
+	Data       []ExampleResponse       `json:"data"`
 	Pagination internal.PaginationMeta `json:"pagination"`
 }
 

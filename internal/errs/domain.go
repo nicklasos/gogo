@@ -106,6 +106,11 @@ func NewForbiddenError(key, message string) *DomainError {
 	return NewDomainError(key, message, http.StatusForbidden)
 }
 
+// NewTooManyRequestsError creates a rate limit error
+func NewTooManyRequestsError(key, message string) *DomainError {
+	return NewDomainError(key, message, http.StatusTooManyRequests)
+}
+
 // NewInternalError creates an internal server error
 func NewInternalError(key, message string) *DomainError {
 	return NewDomainError(key, message, http.StatusInternalServerError)

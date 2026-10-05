@@ -1,8 +1,10 @@
 package uploads
 
 import (
-	"app/internal"
 	"net/http"
+	"os"
+
+	"app/internal"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,7 +25,30 @@ func RegisterRoutes(app *internal.App) {
 	}
 }
 
-// RegisterPublicRoutes serves uploaded files at /api/files/*
+// RegisterPublicRoutes serves uploaded files at /api/files/*. Only files are served:
+// there are no directory listings, and nothing outside the upload folder is reachable.
 func RegisterPublicRoutes(r *gin.Engine, app *internal.App) {
-	r.StaticFS("/api/files", http.Dir(app.Config.UploadFolder))
+	storage := NewLocalStorage(app.Config.UploadFolder, app.Config.FilesBaseURL)
+
+	serve := func(c *gin.Context) {
+		full, err := storage.Resolve(c.Param("filepath"))
+		if err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		info, err := os.Stat(full)
+		if err != nil || info.IsDir() {
+			c.Status(http.StatusNotFound)
+			return
+		}
+
+		// Uploads are user content: the browser must not guess a type for them or let
+		// one run scripts in the API's origin.
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("Content-Security-Policy", "sandbox; default-src 'none'")
+		c.File(full)
+	}
+
+	r.GET("/api/files/*filepath", serve)
+	r.HEAD("/api/files/*filepath", serve)
 }

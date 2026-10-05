@@ -19,6 +19,12 @@ func NewEngine(cfg *config.Config, log *logger.Logger) *gin.Engine {
 	r := gin.New()
 	r.RedirectTrailingSlash = false
 
+	// Rate limiting keys on the client IP, so X-Forwarded-For is believed only from these proxies.
+	if err := r.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+		log.Error("Invalid TRUSTED_PROXIES, trusting no proxy", "error", err)
+		_ = r.SetTrustedProxies(nil)
+	}
+
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Recovery(log))
 	// r.Use(middleware.RequestLogging(log))

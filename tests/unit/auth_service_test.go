@@ -7,6 +7,7 @@ import (
 
 	"app/internal/auth"
 	"app/internal/db"
+	"app/internal/mail"
 	"app/tests/helpers"
 
 	"github.com/jackc/pgx/v5"
@@ -20,7 +21,7 @@ func TestAuthService_Register(t *testing.T) {
 			// Setup: Create auth service
 			jwtSecret := []byte("test-secret-key")
 			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), jwtSecret, testLogger)
+			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
 
 			// Test: Register user
 			req := auth.RegisterRequest{
@@ -50,7 +51,7 @@ func TestAuthService_Register(t *testing.T) {
 
 			jwtSecret := []byte("test-secret-key")
 			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), jwtSecret, testLogger)
+			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
 
 			// Test: Try to register with same email
 			req := auth.RegisterRequest{
@@ -76,7 +77,7 @@ func TestAuthService_Login(t *testing.T) {
 			// Setup: Register a user first
 			jwtSecret := []byte("test-secret-key")
 			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), jwtSecret, testLogger)
+			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
 
 			registerReq := auth.RegisterRequest{
 				Email:    "user@example.com",
@@ -111,7 +112,7 @@ func TestAuthService_Login(t *testing.T) {
 			// Setup: Create auth service
 			jwtSecret := []byte("test-secret-key")
 			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), jwtSecret, testLogger)
+			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
 
 			// Test: Login with non-existent email
 			loginReq := auth.LoginRequest{
@@ -134,7 +135,7 @@ func TestAuthService_Login(t *testing.T) {
 			// Setup: Register a user first
 			jwtSecret := []byte("test-secret-key")
 			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), jwtSecret, testLogger)
+			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
 
 			registerReq := auth.RegisterRequest{
 				Email:    "user@example.com",
@@ -168,7 +169,7 @@ func TestAuthService_RefreshToken(t *testing.T) {
 			// Setup: Register a user and get tokens
 			jwtSecret := []byte("test-secret-key")
 			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), jwtSecret, testLogger)
+			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
 
 			registerReq := auth.RegisterRequest{
 				Email:    "user@example.com",
@@ -198,7 +199,7 @@ func TestAuthService_RefreshToken(t *testing.T) {
 			// Setup: Create auth service
 			jwtSecret := []byte("test-secret-key")
 			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), jwtSecret, testLogger)
+			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
 
 			// Test: Refresh with invalid token
 			tokenPair, err := service.RefreshToken(ctx, "invalid-token")
@@ -217,7 +218,7 @@ func TestAuthService_VerifyJWT(t *testing.T) {
 			// Setup: Register a user and get token
 			jwtSecret := []byte("test-secret-key")
 			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), jwtSecret, testLogger)
+			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
 
 			registerReq := auth.RegisterRequest{
 				Email:    "user@example.com",
@@ -243,7 +244,7 @@ func TestAuthService_VerifyJWT(t *testing.T) {
 			// Setup: Create auth service
 			jwtSecret := []byte("test-secret-key")
 			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), jwtSecret, testLogger)
+			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
 
 			// Test: Verify invalid token
 			token, err := service.VerifyJWT("invalid-token")
@@ -264,7 +265,7 @@ func TestAuthService_GetUserFromContext(t *testing.T) {
 
 			jwtSecret := []byte("test-secret-key")
 			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), jwtSecret, testLogger)
+			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
 
 			// Test: Get user by ID
 			resultUser, err := service.GetUserFromContext(ctx, user.ID)
@@ -282,7 +283,7 @@ func TestAuthService_GetUserFromContext(t *testing.T) {
 			// Setup: Create auth service
 			jwtSecret := []byte("test-secret-key")
 			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), jwtSecret, testLogger)
+			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
 
 			// Test: Get non-existent user
 			user, err := service.GetUserFromContext(ctx, 99999)

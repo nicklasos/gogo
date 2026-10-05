@@ -6,6 +6,7 @@ import (
 	"app/internal/cache"
 	"app/internal/db"
 	"app/internal/logger"
+	"app/internal/mail"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,6 +19,7 @@ type App struct {
 	Tx      *db.TxRunner
 	Cache   cache.Cache
 	Logger  *logger.Logger
+	Mail    mail.Sender
 	Api     *gin.RouterGroup
 	Images  *ImageService
 
