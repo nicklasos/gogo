@@ -79,10 +79,3 @@ func GetTestDBPool() *pgxpool.Pool {
 
 	return testPool
 }
-
-// CloseTestDB closes the test database connection
-func CloseTestDB() {
-	if testPool != nil {
-		testPool.Close()
-	}
-}

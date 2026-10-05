@@ -88,7 +88,7 @@ Run the tests with `make test`; it migrates the test database first.
 - **Request ID**: `X-Request-ID` on every response and in every `*Context` log line
 - **Graceful shutdown** and env-driven CORS
 - **CRUD Example**: Complete example module with Redis `Remember` caching
-- **Pagination**: Page-based and cursor helpers (`last_id`, `last_created_at`)
+- **Pagination**: `?page` / `?page_size` parsing and a `pagination` block on every list
 - **Type Safety**: SQLC for type-safe database operations
 - **Swagger**: Auto-generated API documentation
 - **Uploads**: content-checked file upload behind a `Storage` interface, paginated list, and file serving without directory listings
@@ -114,7 +114,7 @@ gogo/
 ├── cmd/cron/main.go             # Standalone scheduler
 ├── cmd/cli/main.go              # CLI (migrate, create-user, test)
 ├── internal/
-│   ├── app.go                   # App context with DB, Tx, Cache, Logger, Images
+│   ├── app.go                   # App context with DB, Tx, Cache, Logger, Mail
 │   ├── server/                  # Engine middleware + the list of modules
 │   ├── auth/                    # Authentication module
 │   ├── users/                   # User management
@@ -217,9 +217,16 @@ ENABLE_SCHEDULER=false
 ## Patterns
 
 ### Context Pattern
-- **User ID**: Use `middleware.GetUserIDFromContext(c)` in handlers
-- **Pagination**: Use `middleware.GetPaginationParamsFromContext(c, default, min, max)`
-- **Cursor pagination**: `GetLastIDPaginationParamsFromContext` / `GetCreatedAtPaginationParamsFromContext`
+Handlers start with small helpers that answer the error themselves and return `false`:
+
+```go
+userID, ok := middleware.CurrentUserID(c)   // 401 when not signed in
+id, ok := middleware.PathID(c, "id")        // 400 when :id is not a positive integer
+page, ok := middleware.Page(c)              // 400 when ?page / ?page_size are invalid
+```
+
+- `internal.RespondMessage(c, "...")` for actions with nothing to return, `internal.FormatTime(ts)` for timestamps, `internal.NewPaginationMeta(total, page, size)` for lists.
+- Handlers do not log errors: a 5xx is logged once by the error middleware with the request ID, and a 4xx is not logged.
 
 ### Types.go Pattern
 - All request/response types go in `types.go` within each module

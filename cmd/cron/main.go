@@ -19,7 +19,6 @@ func main() {
 	)
 	flag.Parse()
 
-	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
@@ -32,7 +31,6 @@ func main() {
 		log.Println("Using TEST_DATABASE_URL for database connection")
 	}
 
-	// Initialize logger
 	appLogger, err := logger.New(logger.Config{
 		Level:     cfg.LogLevel,
 		Format:    cfg.LogFormat,
@@ -45,7 +43,6 @@ func main() {
 
 	appLogger.Info("Starting Gogo Cron Server")
 
-	// Initialize database
 	database, err := db.NewConnection(cfg)
 	if err != nil {
 		appLogger.Error("Failed to connect to database", "error", err)
@@ -55,10 +52,8 @@ func main() {
 
 	appLogger.Info("Database connection established")
 
-	// Initialize other services
 	queries := db.New(database)
 
-	// Create scheduler dependencies
 	deps := &scheduler.Dependencies{
 		Config:  cfg,
 		DB:      database,
@@ -66,19 +61,15 @@ func main() {
 		Logger:  appLogger,
 	}
 
-	// Initialize and configure scheduler
 	cronScheduler := scheduler.NewScheduler(deps)
 
-	// Register all cron jobs
 	if err := cronScheduler.RegisterJobs(); err != nil {
 		appLogger.Error("Failed to register cron jobs", "error", err)
 		os.Exit(1)
 	}
 
-	// Start the scheduler
 	cronScheduler.Start()
 
-	// Log registered jobs for debugging
 	entries := cronScheduler.GetEntries()
 	appLogger.Info("Scheduler started with jobs", "job_count", len(entries))
 	for _, entry := range entries {
@@ -86,17 +77,14 @@ func main() {
 			"next_run", entry.Next.Format("2006-01-02 15:04:05"))
 	}
 
-	// Set up graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	appLogger.Info("Cron server is running. Press Ctrl+C to exit.")
 
-	// Wait for shutdown signal
 	<-quit
 	appLogger.Info("Shutdown signal received, stopping scheduler...")
 
-	// Graceful shutdown
 	cronScheduler.Stop()
 	appLogger.Info("Gogo Cron Server stopped successfully")
 }

@@ -72,7 +72,6 @@ func (c *RedisCache) Delete(ctx context.Context, key string) error {
 
 // Remember gets a value from cache or stores it if it doesn't exist
 func (c *RedisCache) Remember(ctx context.Context, key string, ttl time.Duration, callback func() (interface{}, error), dest interface{}) error {
-	// Try to get from cache first
 	err := c.Get(ctx, key, dest)
 	if err == nil {
 		return nil // Found in cache
@@ -87,7 +86,6 @@ func (c *RedisCache) Remember(ctx context.Context, key string, ttl time.Duration
 		return err
 	}
 
-	// Store in cache for next time
 	if err := c.Set(ctx, key, value, ttl); err != nil {
 		return err
 	}

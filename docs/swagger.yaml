@@ -17,6 +17,20 @@ definitions:
     - error_key
     - status
     type: object
+  internal.MessageData:
+    properties:
+      message:
+        type: string
+    required:
+    - message
+    type: object
+  internal.MessageResponse:
+    properties:
+      data:
+        $ref: '#/definitions/internal.MessageData'
+    required:
+    - data
+    type: object
   internal.PaginationMeta:
     properties:
       current_page:
@@ -69,18 +83,6 @@ definitions:
     - access_token
     - refresh_token
     - user
-    type: object
-  internal_auth.MessageResponse:
-    properties:
-      data:
-        properties:
-          message:
-            type: string
-        required:
-        - message
-        type: object
-    required:
-    - data
     type: object
   internal_auth.RefreshTokenDataResponse:
     properties:
@@ -245,18 +247,6 @@ definitions:
     - updated_at
     - user_id
     type: object
-  internal_example.MessageResponse:
-    properties:
-      data:
-        properties:
-          message:
-            type: string
-        required:
-        - message
-        type: object
-    required:
-    - data
-    type: object
   internal_example.PaginatedExamplesResponse:
     properties:
       data:
@@ -277,18 +267,6 @@ definitions:
         type: string
     required:
     - title
-    type: object
-  internal_uploads.MessageResponse:
-    properties:
-      data:
-        properties:
-          message:
-            type: string
-        required:
-        - message
-        type: object
-    required:
-    - data
     type: object
   internal_uploads.PaginatedUploadsResponse:
     properties:
@@ -372,18 +350,6 @@ definitions:
     - name
     - password
     - role
-    type: object
-  internal_users.MessageResponse:
-    properties:
-      data:
-        properties:
-          message:
-            type: string
-        required:
-        - message
-        type: object
-    required:
-    - data
     type: object
   internal_users.PaginatedUsersResponse:
     properties:
@@ -482,7 +448,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_auth.MessageResponse'
+            $ref: '#/definitions/internal.MessageResponse'
         "400":
           description: Bad Request
           schema:
@@ -539,7 +505,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_auth.MessageResponse'
+            $ref: '#/definitions/internal.MessageResponse'
         "401":
           description: Unauthorized
           schema:
@@ -628,7 +594,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_auth.MessageResponse'
+            $ref: '#/definitions/internal.MessageResponse'
         "400":
           description: Bad Request
           schema:
@@ -657,7 +623,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_auth.MessageResponse'
+            $ref: '#/definitions/internal.MessageResponse'
         "400":
           description: Bad Request
           schema:
@@ -758,7 +724,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_auth.MessageResponse'
+            $ref: '#/definitions/internal.MessageResponse'
         "400":
           description: Bad Request
           schema:
@@ -788,7 +754,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_auth.MessageResponse'
+            $ref: '#/definitions/internal.MessageResponse'
         "400":
           description: Bad Request
           schema:
@@ -892,7 +858,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_example.MessageResponse'
+            $ref: '#/definitions/internal.MessageResponse'
         "400":
           description: Bad Request
           schema:
@@ -1079,7 +1045,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_uploads.MessageResponse'
+            $ref: '#/definitions/internal.MessageResponse'
         "401":
           description: Unauthorized
           schema:
@@ -1232,7 +1198,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_users.MessageResponse'
+            $ref: '#/definitions/internal.MessageResponse'
         "400":
           description: Bad Request
           schema:
@@ -1330,7 +1296,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_users.MessageResponse'
+            $ref: '#/definitions/internal.MessageResponse'
         "400":
           description: Bad Request
           schema:

@@ -7,7 +7,7 @@ import (
 
 func RegisterRoutes(app *internal.App) {
 	service := NewUserService(app.Queries, app.Tx)
-	handler := NewHandler(service, app.Logger)
+	handler := NewHandler(service)
 
 	users := app.Api.Group("/users")
 	users.Use(app.AuthMiddleware)

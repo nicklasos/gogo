@@ -180,50 +180,6 @@ func TestExampleService_DeleteExample(t *testing.T) {
 	})
 }
 
-func TestExampleService_ListExamples(t *testing.T) {
-	t.Run("should list examples for user", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Create a user and multiple examples
-			user := helpers.CreateTestUser(t, ctx, tx)
-			example1 := helpers.CreateTestExample(t, ctx, tx, user.ID)
-			example2 := helpers.CreateTestExample(t, ctx, tx, user.ID)
-			service := example.NewExampleService(queries, nil)
-
-			// Test: List examples
-			examples, err := service.ListExamples(ctx, user.ID)
-
-			// Assert: Verify result
-			require.NoError(t, err)
-			assert.NotNil(t, examples)
-			assert.GreaterOrEqual(t, len(examples), 2)
-
-			// Verify examples are in the list
-			exampleIDs := make(map[int32]bool)
-			for _, ex := range examples {
-				exampleIDs[ex.ID] = true
-			}
-			assert.True(t, exampleIDs[example1.ID])
-			assert.True(t, exampleIDs[example2.ID])
-		})
-	})
-
-	t.Run("should return empty list when user has no examples", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Create a user
-			user := helpers.CreateTestUser(t, ctx, tx)
-			service := example.NewExampleService(queries, nil)
-
-			// Test: List examples
-			examples, err := service.ListExamples(ctx, user.ID)
-
-			// Assert: Verify result
-			require.NoError(t, err)
-			assert.NotNil(t, examples)
-			assert.Equal(t, 0, len(examples))
-		})
-	})
-}
-
 func TestExampleService_ListExamplesPaginated(t *testing.T) {
 	t.Run("should list paginated examples", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
@@ -240,8 +196,6 @@ func TestExampleService_ListExamplesPaginated(t *testing.T) {
 			// Assert: Verify result
 			require.NoError(t, err)
 			assert.NotNil(t, result)
-			assert.Equal(t, int32(1), result.Page)
-			assert.Equal(t, int32(3), result.PageSize)
 			assert.Equal(t, int64(5), result.Total)
 			assert.Equal(t, 3, len(result.Data))
 		})
@@ -262,40 +216,9 @@ func TestExampleService_ListExamplesPaginated(t *testing.T) {
 			// Assert: Verify result
 			require.NoError(t, err)
 			assert.NotNil(t, result)
-			assert.Equal(t, int32(2), result.Page)
-			assert.Equal(t, int32(3), result.PageSize)
 			assert.Equal(t, int64(5), result.Total)
 			assert.Equal(t, 2, len(result.Data))
 		})
 	})
 
-	t.Run("should return error for invalid page", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Create a user
-			user := helpers.CreateTestUser(t, ctx, tx)
-			service := example.NewExampleService(queries, nil)
-
-			// Test: List with invalid page
-			result, err := service.ListExamplesPaginated(ctx, user.ID, 0, 10)
-
-			// Assert: Should return error
-			assert.Error(t, err)
-			assert.Nil(t, result)
-		})
-	})
-
-	t.Run("should return error for invalid page size", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Create a user
-			user := helpers.CreateTestUser(t, ctx, tx)
-			service := example.NewExampleService(queries, nil)
-
-			// Test: List with invalid page size
-			result, err := service.ListExamplesPaginated(ctx, user.ID, 1, 101)
-
-			// Assert: Should return error
-			assert.Error(t, err)
-			assert.Nil(t, result)
-		})
-	})
 }

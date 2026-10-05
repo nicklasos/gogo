@@ -3,29 +3,21 @@ package users
 import (
 	"net/http"
 	"slices"
-	"strconv"
 
 	"app/internal"
 	"app/internal/db"
 	"app/internal/errs"
-	"app/internal/logger"
 	"app/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
-const timeFormat = "2006-01-02T15:04:05Z07:00"
-
 type Handler struct {
 	service *UserService
-	logger  *logger.Logger
 }
 
-func NewHandler(service *UserService, logger *logger.Logger) *Handler {
-	return &Handler{
-		service: service,
-		logger:  logger,
-	}
+func NewHandler(service *UserService) *Handler {
+	return &Handler{service: service}
 }
 
 func userResponseFromDB(user db.User) UserResponse {
@@ -39,8 +31,8 @@ func userResponseFromDB(user db.User) UserResponse {
 		Name:          user.Name,
 		Roles:         roles,
 		EmailVerified: user.EmailVerifiedAt.Valid,
-		CreatedAt:     user.CreatedAt.Time.Format(timeFormat),
-		UpdatedAt:     user.UpdatedAt.Time.Format(timeFormat),
+		CreatedAt:     internal.FormatTime(user.CreatedAt),
+		UpdatedAt:     internal.FormatTime(user.UpdatedAt),
 	}
 }
 
@@ -68,15 +60,13 @@ func (h *Handler) ListUsers(c *gin.Context) {
 		return
 	}
 
-	pagination, err := middleware.GetPaginationParamsFromContext(c, 20, 1, 100)
-	if err != nil {
-		errs.RespondWithBadRequest(c, errs.ErrKeyBadRequest, err.Error())
+	pagination, ok := middleware.Page(c)
+	if !ok {
 		return
 	}
 
 	result, err := h.service.ListByRole(c.Request.Context(), middleware.GetUserRolesFromContext(c), role, pagination.Page, pagination.PageSize)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to list users", "error", err, "role", role)
 		errs.RespondWithError(c, err)
 		return
 	}
@@ -116,7 +106,6 @@ func (h *Handler) CreateUser(c *gin.Context) {
 
 	user, err := h.service.Create(c.Request.Context(), middleware.GetUserRolesFromContext(c), req)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to create user", "error", err, "email", req.Email)
 		errs.RespondWithError(c, err)
 		return
 	}
@@ -142,9 +131,8 @@ func (h *Handler) CreateUser(c *gin.Context) {
 //	@Failure		500		{object}	errs.ErrorResponse
 //	@Router			/api/v1/users/{id} [put]
 func (h *Handler) UpdateUser(c *gin.Context) {
-	id, err := parseUserID(c)
-	if err != nil {
-		errs.RespondWithBadRequest(c, errs.ErrKeyBadRequest, "Invalid user ID")
+	id, ok := middleware.PathID(c, "id")
+	if !ok {
 		return
 	}
 
@@ -156,7 +144,6 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 
 	user, err := h.service.Update(c.Request.Context(), middleware.GetUserRolesFromContext(c), id, req)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to update user", "error", err, "user_id", id)
 		errs.RespondWithError(c, err)
 		return
 	}
@@ -174,7 +161,7 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Param			id		path		int					true	"User ID"
 //	@Param			request	body		SetPasswordRequest	true	"New password"
-//	@Success		200		{object}	MessageResponse
+//	@Success		200		{object}	internal.MessageResponse
 //	@Failure		400		{object}	errs.ErrorResponse
 //	@Failure		401		{object}	errs.ErrorResponse
 //	@Failure		403		{object}	errs.ErrorResponse
@@ -182,9 +169,8 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 //	@Failure		500		{object}	errs.ErrorResponse
 //	@Router			/api/v1/users/{id}/set-password [post]
 func (h *Handler) SetPassword(c *gin.Context) {
-	id, err := parseUserID(c)
-	if err != nil {
-		errs.RespondWithBadRequest(c, errs.ErrKeyBadRequest, "Invalid user ID")
+	id, ok := middleware.PathID(c, "id")
+	if !ok {
 		return
 	}
 
@@ -195,14 +181,11 @@ func (h *Handler) SetPassword(c *gin.Context) {
 	}
 
 	if err := h.service.SetPassword(c.Request.Context(), middleware.GetUserRolesFromContext(c), id, req.Password); err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to set password", "error", err, "user_id", id)
 		errs.RespondWithError(c, err)
 		return
 	}
 
-	var response MessageResponse
-	response.Data.Message = "Password updated successfully"
-	c.JSON(http.StatusOK, response)
+	internal.RespondMessage(c, "Password updated successfully")
 }
 
 // DeleteUser deletes a user
@@ -214,7 +197,7 @@ func (h *Handler) SetPassword(c *gin.Context) {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			id	path		int	true	"User ID"
-//	@Success		200	{object}	MessageResponse
+//	@Success		200	{object}	internal.MessageResponse
 //	@Failure		400	{object}	errs.ErrorResponse
 //	@Failure		401	{object}	errs.ErrorResponse
 //	@Failure		403	{object}	errs.ErrorResponse
@@ -222,33 +205,20 @@ func (h *Handler) SetPassword(c *gin.Context) {
 //	@Failure		500	{object}	errs.ErrorResponse
 //	@Router			/api/v1/users/{id} [delete]
 func (h *Handler) DeleteUser(c *gin.Context) {
-	id, err := parseUserID(c)
-	if err != nil {
-		errs.RespondWithBadRequest(c, errs.ErrKeyBadRequest, "Invalid user ID")
+	id, ok := middleware.PathID(c, "id")
+	if !ok {
 		return
 	}
 
-	callerID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		errs.RespondWithUnauthorized(c, "Unauthorized")
+	callerID, ok := middleware.CurrentUserID(c)
+	if !ok {
 		return
 	}
 
 	if err := h.service.Delete(c.Request.Context(), callerID, middleware.GetUserRolesFromContext(c), id); err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to delete user", "error", err, "user_id", id)
 		errs.RespondWithError(c, err)
 		return
 	}
 
-	var response MessageResponse
-	response.Data.Message = "User deleted successfully"
-	c.JSON(http.StatusOK, response)
-}
-
-func parseUserID(c *gin.Context) (int32, error) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
-	if err != nil {
-		return 0, err
-	}
-	return int32(id), nil
+	internal.RespondMessage(c, "User deleted successfully")
 }

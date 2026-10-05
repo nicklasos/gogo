@@ -13,7 +13,7 @@ import (
 func RegisterRoutes(app *internal.App) {
 	config := DefaultUploadConfig(app.Config.UploadFolder, app.Config.FilesBaseURL)
 	service := NewUploadService(app.Queries, config)
-	handler := NewHandler(service, app.Logger)
+	handler := NewHandler(service)
 
 	uploads := app.Api.Group("/uploads")
 	uploads.Use(app.AuthMiddleware)

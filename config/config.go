@@ -15,7 +15,6 @@ type Config struct {
 	AppName    string
 	AppVersion string
 
-	// Environment variables
 	DatabaseURL     string
 	TestDatabaseURL string
 	RedisURL        string
@@ -57,7 +56,6 @@ type Config struct {
 	// CORSAllowedOrigins is empty (or contains "*") to allow any origin
 	CORSAllowedOrigins []string
 
-	// Scheduler configuration
 	EnableScheduler bool
 }
 
@@ -70,7 +68,6 @@ func Load() (*Config, error) {
 		AppName:    getEnv("APP_NAME", "MyApp"),
 		AppVersion: "1.0.0",
 
-		// Environment variables with defaults
 		DatabaseURL:     getEnv("DATABASE_URL", ""),
 		TestDatabaseURL: getEnv("TEST_DATABASE_URL", ""),
 		RedisURL:        getEnv("REDIS_URL", "redis://localhost:6379/1"),
@@ -105,7 +102,6 @@ func Load() (*Config, error) {
 
 		CORSAllowedOrigins: getEnvList("CORS_ALLOWED_ORIGINS"),
 
-		// Scheduler configuration
 		EnableScheduler: getEnvBool("ENABLE_SCHEDULER", true),
 	}, nil
 }

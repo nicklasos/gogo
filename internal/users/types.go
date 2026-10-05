@@ -42,10 +42,3 @@ type PaginatedUsersResponse struct {
 	Data       []UserResponse          `json:"data"`
 	Pagination internal.PaginationMeta `json:"pagination"`
 }
-
-// MessageResponse wraps a simple message
-type MessageResponse struct {
-	Data struct {
-		Message string `json:"message"`
-	} `json:"data"`
-}

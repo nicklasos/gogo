@@ -16,13 +16,11 @@ func NewConnection(cfg *config.Config) (*redis.Client, error) {
 		return nil, fmt.Errorf("REDIS_URL is required")
 	}
 
-	// Parse Redis URL
 	opt, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse Redis URL: %w", err)
 	}
 
-	// Configure production settings
 	configureRedisOptions(opt)
 
 	client := redis.NewClient(opt)

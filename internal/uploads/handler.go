@@ -3,32 +3,24 @@ package uploads
 import (
 	"errors"
 	"net/http"
-	"strconv"
 
 	"app/internal"
 	"app/internal/db"
 	"app/internal/errs"
-	"app/internal/logger"
 	"app/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
-
-const timeFormat = "2006-01-02T15:04:05Z07:00"
 
 // multipartOverhead is room for the form boundaries around the file itself
 const multipartOverhead = 1 << 20
 
 type Handler struct {
 	service *UploadService
-	logger  *logger.Logger
 }
 
-func NewHandler(service *UploadService, logger *logger.Logger) *Handler {
-	return &Handler{
-		service: service,
-		logger:  logger,
-	}
+func NewHandler(service *UploadService) *Handler {
+	return &Handler{service: service}
 }
 
 func (h *Handler) uploadResponse(upload *db.Upload) *UploadResponse {
@@ -42,8 +34,8 @@ func (h *Handler) uploadResponse(upload *db.Upload) *UploadResponse {
 		OriginalFilename: upload.OriginalFilename,
 		FileSize:         upload.FileSize,
 		MimeType:         upload.MimeType.String,
-		CreatedAt:        upload.CreatedAt.Time.Format(timeFormat),
-		UpdatedAt:        upload.UpdatedAt.Time.Format(timeFormat),
+		CreatedAt:        internal.FormatTime(upload.CreatedAt),
+		UpdatedAt:        internal.FormatTime(upload.UpdatedAt),
 	}
 }
 
@@ -62,9 +54,8 @@ func (h *Handler) uploadResponse(upload *db.Upload) *UploadResponse {
 //	@Failure		500		{object}	errs.ErrorResponse
 //	@Router			/api/v1/uploads [post]
 func (h *Handler) UploadFile(c *gin.Context) {
-	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		errs.RespondWithUnauthorized(c, "Unauthorized")
+	userID, ok := middleware.CurrentUserID(c)
+	if !ok {
 		return
 	}
 
@@ -79,19 +70,15 @@ func (h *Handler) UploadFile(c *gin.Context) {
 				WithDetails(map[string]interface{}{"max_bytes": h.service.MaxFileSize()}))
 			return
 		}
-		h.logger.ErrorContext(c.Request.Context(), "Failed to get uploaded file", "error", err)
-		errs.RespondWithBadRequest(c, errs.ErrKeyValidationError, "No file uploaded")
+		errs.RespondWithBadRequest(c, errs.ErrKeyUploadEmpty, "No file uploaded")
 		return
 	}
 
 	upload, err := h.service.UploadFile(c.Request.Context(), file, userID)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to upload file", "error", err, "user_id", userID)
 		errs.RespondWithError(c, err)
 		return
 	}
-
-	h.logger.InfoContext(c.Request.Context(), "File uploaded successfully", "upload_id", upload.ID, "user_id", userID)
 
 	c.JSON(http.StatusOK, UploadDataResponse{
 		Data: h.uploadResponse(upload),
@@ -111,20 +98,17 @@ func (h *Handler) UploadFile(c *gin.Context) {
 //	@Failure		404	{object}	errs.ErrorResponse
 //	@Router			/api/v1/uploads/{id} [get]
 func (h *Handler) GetUpload(c *gin.Context) {
-	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		errs.RespondWithUnauthorized(c, "Unauthorized")
+	userID, ok := middleware.CurrentUserID(c)
+	if !ok {
 		return
 	}
 
-	uploadIDStr := c.Param("id")
-	uploadID, err := strconv.ParseInt(uploadIDStr, 10, 32)
-	if err != nil {
-		errs.RespondWithBadRequest(c, errs.ErrKeyValidationError, "Invalid upload ID")
+	uploadID, ok := middleware.PathID(c, "id")
+	if !ok {
 		return
 	}
 
-	upload, err := h.service.GetUpload(c.Request.Context(), int32(uploadID), userID)
+	upload, err := h.service.GetUpload(c.Request.Context(), uploadID, userID)
 	if err != nil {
 		errs.RespondWithError(c, err)
 		return
@@ -149,21 +133,18 @@ func (h *Handler) GetUpload(c *gin.Context) {
 //	@Failure		401			{object}	errs.ErrorResponse
 //	@Router			/api/v1/uploads [get]
 func (h *Handler) ListUploads(c *gin.Context) {
-	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		errs.RespondWithUnauthorized(c, "Unauthorized")
+	userID, ok := middleware.CurrentUserID(c)
+	if !ok {
 		return
 	}
 
-	pagination, err := middleware.GetPaginationParamsFromContext(c, 20, 1, 100)
-	if err != nil {
-		errs.RespondWithBadRequest(c, errs.ErrKeyBadRequest, err.Error())
+	pagination, ok := middleware.Page(c)
+	if !ok {
 		return
 	}
 
 	result, err := h.service.ListUploadsPaginated(c.Request.Context(), userID, pagination.Page, pagination.PageSize)
 	if err != nil {
-		h.logger.ErrorContext(c.Request.Context(), "Failed to list uploads", "error", err, "user_id", userID)
 		errs.RespondWithError(c, err)
 		return
 	}
@@ -187,35 +168,25 @@ func (h *Handler) ListUploads(c *gin.Context) {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			id	path		int	true	"Upload ID"
-//	@Success		200	{object}	MessageResponse
+//	@Success		200	{object}	internal.MessageResponse
 //	@Failure		401	{object}	errs.ErrorResponse
 //	@Failure		404	{object}	errs.ErrorResponse
 //	@Router			/api/v1/uploads/{id} [delete]
 func (h *Handler) DeleteUpload(c *gin.Context) {
-	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		errs.RespondWithUnauthorized(c, "Unauthorized")
+	userID, ok := middleware.CurrentUserID(c)
+	if !ok {
 		return
 	}
 
-	uploadIDStr := c.Param("id")
-	uploadID, err := strconv.ParseInt(uploadIDStr, 10, 32)
-	if err != nil {
-		errs.RespondWithBadRequest(c, errs.ErrKeyValidationError, "Invalid upload ID")
+	uploadID, ok := middleware.PathID(c, "id")
+	if !ok {
 		return
 	}
 
-	err = h.service.DeleteUpload(c.Request.Context(), int32(uploadID), userID)
-	if err != nil {
+	if err := h.service.DeleteUpload(c.Request.Context(), uploadID, userID); err != nil {
 		errs.RespondWithError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, MessageResponse{
-		Data: struct {
-			Message string `json:"message"`
-		}{
-			Message: "Upload deleted successfully",
-		},
-	})
+	internal.RespondMessage(c, "Upload deleted successfully")
 }

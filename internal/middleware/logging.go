@@ -16,10 +16,8 @@ func RequestLogging(log *logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 
-		// Process request
 		c.Next()
 
-		// Log after request completes
 		latency := time.Since(start)
 
 		status := c.Writer.Status()
@@ -28,7 +26,6 @@ func RequestLogging(log *logger.Logger) gin.HandlerFunc {
 		ip := c.ClientIP()
 		userAgent := c.Request.UserAgent()
 
-		// Get any errors from context
 		errors := c.Errors.ByType(gin.ErrorTypeAny)
 
 		if len(errors) > 0 {
@@ -91,7 +88,6 @@ func ErrorHandler(log *logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
 
-		// Check if there are any errors
 		if len(c.Errors) > 0 {
 			err := c.Errors.Last()
 			ctx := c.Request.Context()
@@ -107,9 +103,7 @@ func ErrorHandler(log *logger.Logger) gin.HandlerFunc {
 				)
 			}
 
-			// Send JSON error response if not already sent
 			if !c.Writer.Written() {
-				// Use the new error response system
 				errs.RespondWithError(c, err.Err)
 			}
 		}
@@ -121,7 +115,6 @@ func Recovery(log *logger.Logger) gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
 		ctx := c.Request.Context()
 
-		// Convert recovered value to error
 		var err error
 		if e, ok := recovered.(error); ok {
 			err = e
@@ -135,7 +128,6 @@ func Recovery(log *logger.Logger) gin.HandlerFunc {
 			"uri", c.Request.URL.Path,
 		)
 
-		// Send error response
 		errs.RespondWithInternalError(c, "Internal Server Error")
 	})
 }

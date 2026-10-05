@@ -18,9 +18,8 @@ gogo/
 │   ├── config.go                # Env → Config
 │   └── testdb.go                # Test-database safety guard
 ├── internal/
-│   ├── app.go                   # App context with DB, Tx, Cache, Logger, Mail, Images, AuthMiddleware
+│   ├── app.go                   # App context with DB, Tx, Cache, Logger, Mail, AuthMiddleware
 │   ├── server/server.go         # NewEngine (middleware) + RegisterRoutes (the module list)
-│   ├── images.go                # Relative path → public URL helper
 │   ├── auth/                    # Authentication module
 │   │   ├── auth_service.go      # Business logic
 │   │   ├── handlers.go          # HTTP handlers
@@ -38,7 +37,8 @@ gogo/
 │   │   ├── require_role.go      # Roles + RequireRole / RequireAnyRole
 │   │   ├── cors.go              # CORS from CORS_ALLOWED_ORIGINS
 │   │   ├── logging.go           # RequestID, Recovery, ErrorHandler
-│   │   └── pagination.go        # Page + cursor pagination
+│   │   ├── request.go           # CurrentUserID, PathID, Page: handler helpers that answer the error themselves
+│   │   └── pagination.go        # ?page / ?page_size parsing
 │   ├── cache/                   # RedisCache + MemoryCache
 │   ├── mail/                    # SMTP Service + MemorySender (tests)
 │   ├── errs/                    # Domain errors + WrapDatabaseError
@@ -126,15 +126,24 @@ In tests the runner is built on the test transaction, so `WithTx` becomes a save
 ## Context Patterns
 
 ### User ID from Context
-Use `middleware.GetUserIDFromContext(c)` in handlers to get authenticated user ID.
+`userID, ok := middleware.CurrentUserID(c)` in a handler; when `ok` is false it has already answered 401, so just return.
 
 ### Request ID
 `middleware.RequestID` puts an ID on the request context and the `X-Request-ID` response header. Log with the `*Context` methods (`logger.ErrorContext(c.Request.Context(), ...)`) and the ID is added to the record automatically.
 
 ### Pagination from Context
-- Page-based: `middleware.GetPaginationParamsFromContext(c, default, min, max)`
-- Cursor by ID: `middleware.GetLastIDPaginationParamsFromContext(c, default, min, max)`
-- Cursor by time: `middleware.GetCreatedAtPaginationParamsFromContext(c, default, min, max)`
+`page, ok := middleware.Page(c)` gives `page.Page`, `page.PageSize` and `page.Offset()` with the standard limits (20 by default, 100 at most). `middleware.GetPaginationParamsFromContext(c, default, min, max)` is there for an endpoint that needs other limits.
+
+### Path parameters
+`id, ok := middleware.PathID(c, "id")` parses a positive integer and answers 400 otherwise.
+
+### Handler shape
+Keep handlers to: helpers above, bind the body (`errs.RespondWithValidationError` on failure), call the service, `errs.RespondWithError(c, err)` on failure, map to the response type with one small function per module. `internal/example/handler.go` is the reference.
+- Do not log errors in handlers. `RespondWithError` hands every 5xx to the error middleware, which logs it once with the request ID; 4xx are not logged.
+- `internal.RespondMessage(c, "...")` for actions with nothing to return; `internal.FormatTime(ts)` for timestamps.
+
+### List caching
+Put a per-owner version in the cache key and change it on every write (see `example_service.go`). Never try to enumerate the keys to forget.
 
 ## Types.go Pattern
 
@@ -183,7 +192,7 @@ make up / make down   # Postgres, Redis and Mailpit in Docker
 - **Services**: `UserService`, `OrderService`
 - **SQL queries**: `GetUserByID`, `CreateUser`, `ListUsers`
 - **Files**: `user_service.go`, `order_handler.go`
-- **Cache keys**: `user:123`, `examples:user:123:page:1:size:20`
+- **Cache keys**: `user:123`, `examples:user:123:v<version>:page:1:size:20`
 
 ## Key Principles
 1. **Dependency Injection via Routes** - Only `routes.go` knows about `*internal.App`

@@ -90,13 +90,6 @@ type RefreshTokenDataResponse struct {
 	Data RefreshTokenResponse `json:"data"`
 }
 
-// MessageResponse wraps a simple message in response
-type MessageResponse struct {
-	Data struct {
-		Message string `json:"message"`
-	} `json:"data"`
-}
-
 // UserDataResponse wraps user data in response
 type UserDataResponse struct {
 	Data UserResponse `json:"data"`

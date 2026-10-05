@@ -21,7 +21,6 @@ type App struct {
 	Logger  *logger.Logger
 	Mail    mail.Sender
 	Api     *gin.RouterGroup
-	Images  *ImageService
 
 	// AuthMiddleware is set by auth.RegisterRoutes; modules registered after it use it to protect routes
 	AuthMiddleware gin.HandlerFunc

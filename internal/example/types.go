@@ -36,15 +36,3 @@ type PaginatedExamplesResponse struct {
 	Data       []ExampleResponse       `json:"data"`
 	Pagination internal.PaginationMeta `json:"pagination"`
 }
-
-// ExamplesListResponse wraps examples list in response
-type ExamplesListResponse struct {
-	Data []ExampleResponse `json:"data"`
-}
-
-// MessageResponse wraps a simple message in response
-type MessageResponse struct {
-	Data struct {
-		Message string `json:"message"`
-	} `json:"data"`
-}

@@ -122,7 +122,6 @@ func main() {
 		Logger:  logger,
 		Mail:    mail.NewService(cfg, logger),
 		Api:     r.Group("/api/v1"),
-		Images:  internal.NewImageService(cfg.FilesBaseURL),
 	}
 
 	if cfg.EnableScheduler {

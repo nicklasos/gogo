@@ -90,7 +90,6 @@ errs.RespondWithValidationError(c, err)
 
 // Quick responses
 errs.RespondWithUnauthorized(c, "Unauthorized")
-errs.RespondWithNotFound(c, key, message)
 errs.RespondWithBadRequest(c, key, message)
 ```
 

@@ -226,20 +226,6 @@ func (s *UploadService) GetUpload(ctx context.Context, uploadID, userID int32) (
 	return &upload, nil
 }
 
-// ListUploads lists all uploads for a user.
-// Returns an empty slice if the user has no uploads.
-// This method can be used internally by other services to retrieve all uploads for a user.
-func (s *UploadService) ListUploads(ctx context.Context, userID int32) ([]db.Upload, error) {
-	uploads, err := s.queries.ListUploadsByUserID(ctx, userID)
-	if err != nil {
-		return nil, errs.WrapInternal(errs.ErrKeyInternalError, "failed to list uploads", err)
-	}
-	if uploads == nil {
-		return []db.Upload{}, nil
-	}
-	return uploads, nil
-}
-
 // ListUploadsPaginated returns one page of a user's uploads, newest first.
 func (s *UploadService) ListUploadsPaginated(ctx context.Context, userID, page, pageSize int32) (*PaginatedUploads, error) {
 	total, err := s.queries.CountUploadsByUserID(ctx, userID)

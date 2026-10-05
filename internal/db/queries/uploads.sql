@@ -6,18 +6,9 @@ INSERT INTO uploads (
 )
 RETURNING *;
 
--- name: GetUploadByID :one
-SELECT * FROM uploads
-WHERE id = $1 LIMIT 1;
-
 -- name: GetUploadByIDAndUserID :one
 SELECT * FROM uploads
 WHERE id = $1 AND user_id = $2 LIMIT 1;
-
--- name: ListUploadsByUserID :many
-SELECT * FROM uploads
-WHERE user_id = $1
-ORDER BY created_at DESC;
 
 -- name: ListUploadsByUserIDPaginated :many
 SELECT * FROM uploads
@@ -29,15 +20,6 @@ LIMIT $2 OFFSET $3;
 SELECT count(*) FROM uploads
 WHERE user_id = $1;
 
--- name: ListUploadsByFolderID :many
-SELECT * FROM uploads
-WHERE folder_id = $1
-ORDER BY created_at DESC;
-
 -- name: DeleteUpload :exec
 DELETE FROM uploads
 WHERE id = $1 AND user_id = $2;
-
--- name: GetUploadByPath :one
-SELECT * FROM uploads
-WHERE relative_path = $1 LIMIT 1;

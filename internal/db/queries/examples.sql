@@ -23,11 +23,6 @@ RETURNING *;
 DELETE FROM examples
 WHERE id = $1 AND user_id = $2;
 
--- name: ListExamplesForUser :many
-SELECT * FROM examples
-WHERE user_id = $1
-ORDER BY created_at DESC;
-
 -- name: ListExamplesForUserPaginated :many
 SELECT * FROM examples
 WHERE user_id = $1

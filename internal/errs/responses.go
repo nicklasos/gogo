@@ -1,6 +1,7 @@
 package errs
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -30,41 +31,18 @@ func RespondWithError(c *gin.Context, err error) {
 		response.Details = domainErr.Details
 	}
 
-	// Set status code
+	// A 5xx is recorded on the context, where the ErrorHandler middleware logs it once
+	// with the request ID. Expected failures (4xx) are not logged: they are the client's.
+	if domainErr.Status >= http.StatusInternalServerError {
+		_ = c.Error(err)
+	}
+
 	c.JSON(domainErr.Status, response)
-}
-
-// RespondWithErrorAndStatus sends a structured error response with explicit status
-func RespondWithErrorAndStatus(c *gin.Context, err error, status int) {
-	domainErr := ExtractDomainError(err)
-
-	response := ErrorResponse{
-		ErrorKey:  domainErr.Key,
-		Message:   domainErr.Message,
-		Status:    status,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-	}
-
-	if len(domainErr.Details) > 0 {
-		response.Details = domainErr.Details
-	}
-
-	c.JSON(status, response)
 }
 
 // RespondWithUnauthorized sends an unauthorized error response
 func RespondWithUnauthorized(c *gin.Context, message string) {
 	RespondWithError(c, NewUnauthorizedError(ErrKeyUnauthorized, message))
-}
-
-// RespondWithForbidden sends a forbidden error response
-func RespondWithForbidden(c *gin.Context, message string) {
-	RespondWithError(c, NewForbiddenError(ErrKeyForbidden, message))
-}
-
-// RespondWithNotFound sends a not found error response
-func RespondWithNotFound(c *gin.Context, key, message string) {
-	RespondWithError(c, NewNotFoundError(key, message))
 }
 
 // RespondWithBadRequest sends a bad request error response

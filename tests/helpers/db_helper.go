@@ -34,10 +34,3 @@ func WithTransaction(t *testing.T, fn func(ctx context.Context, tx pgx.Tx, queri
 	// Run the test function
 	fn(ctx, tx, queries)
 }
-
-// WithTransactionQueries is a simplified version that only provides queries
-func WithTransactionQueries(t *testing.T, fn func(ctx context.Context, queries *db.Queries)) {
-	WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-		fn(ctx, queries)
-	})
-}

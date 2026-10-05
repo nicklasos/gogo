@@ -29,10 +29,3 @@ type PaginatedUploadsResponse struct {
 	Data       []UploadResponse        `json:"data"`
 	Pagination internal.PaginationMeta `json:"pagination"`
 }
-
-// MessageResponse wraps a simple message in response
-type MessageResponse struct {
-	Data struct {
-		Message string `json:"message"`
-	} `json:"data"`
-}

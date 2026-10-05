@@ -83,29 +83,6 @@ func (q *Queries) DeleteUpload(ctx context.Context, arg DeleteUploadParams) erro
 	return err
 }
 
-const getUploadByID = `-- name: GetUploadByID :one
-SELECT id, user_id, folder_id, type, relative_path, original_filename, file_size, mime_type, created_at, updated_at FROM uploads
-WHERE id = $1 LIMIT 1
-`
-
-func (q *Queries) GetUploadByID(ctx context.Context, id int32) (Upload, error) {
-	row := q.db.QueryRow(ctx, getUploadByID, id)
-	var i Upload
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.FolderID,
-		&i.Type,
-		&i.RelativePath,
-		&i.OriginalFilename,
-		&i.FileSize,
-		&i.MimeType,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getUploadByIDAndUserID = `-- name: GetUploadByIDAndUserID :one
 SELECT id, user_id, folder_id, type, relative_path, original_filename, file_size, mime_type, created_at, updated_at FROM uploads
 WHERE id = $1 AND user_id = $2 LIMIT 1
@@ -132,103 +109,6 @@ func (q *Queries) GetUploadByIDAndUserID(ctx context.Context, arg GetUploadByIDA
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const getUploadByPath = `-- name: GetUploadByPath :one
-SELECT id, user_id, folder_id, type, relative_path, original_filename, file_size, mime_type, created_at, updated_at FROM uploads
-WHERE relative_path = $1 LIMIT 1
-`
-
-func (q *Queries) GetUploadByPath(ctx context.Context, relativePath string) (Upload, error) {
-	row := q.db.QueryRow(ctx, getUploadByPath, relativePath)
-	var i Upload
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.FolderID,
-		&i.Type,
-		&i.RelativePath,
-		&i.OriginalFilename,
-		&i.FileSize,
-		&i.MimeType,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const listUploadsByFolderID = `-- name: ListUploadsByFolderID :many
-SELECT id, user_id, folder_id, type, relative_path, original_filename, file_size, mime_type, created_at, updated_at FROM uploads
-WHERE folder_id = $1
-ORDER BY created_at DESC
-`
-
-func (q *Queries) ListUploadsByFolderID(ctx context.Context, folderID int32) ([]Upload, error) {
-	rows, err := q.db.Query(ctx, listUploadsByFolderID, folderID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Upload
-	for rows.Next() {
-		var i Upload
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.FolderID,
-			&i.Type,
-			&i.RelativePath,
-			&i.OriginalFilename,
-			&i.FileSize,
-			&i.MimeType,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listUploadsByUserID = `-- name: ListUploadsByUserID :many
-SELECT id, user_id, folder_id, type, relative_path, original_filename, file_size, mime_type, created_at, updated_at FROM uploads
-WHERE user_id = $1
-ORDER BY created_at DESC
-`
-
-func (q *Queries) ListUploadsByUserID(ctx context.Context, userID int32) ([]Upload, error) {
-	rows, err := q.db.Query(ctx, listUploadsByUserID, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Upload
-	for rows.Next() {
-		var i Upload
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.FolderID,
-			&i.Type,
-			&i.RelativePath,
-			&i.OriginalFilename,
-			&i.FileSize,
-			&i.MimeType,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const listUploadsByUserIDPaginated = `-- name: ListUploadsByUserIDPaginated :many

@@ -6,7 +6,7 @@ import (
 
 func RegisterRoutes(app *internal.App) {
 	service := NewExampleService(app.Queries, app.Cache)
-	handler := NewHandler(service, app.Logger)
+	handler := NewHandler(service)
 
 	examples := app.Api.Group("/examples")
 	examples.Use(app.AuthMiddleware)

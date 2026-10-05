@@ -7,7 +7,6 @@ const (
 	ErrKeyNotFound      = "not_found"
 	ErrKeyBadRequest    = "bad_request"
 	ErrKeyInternalError = "internal_error"
-	ErrKeyInvalidFormat = "invalid_format"
 )
 
 // Auth error keys
@@ -43,89 +42,26 @@ const (
 	ErrKeyUploadTypeNotAllowed = "uploads.type_not_allowed"
 	ErrKeyUploadTooLarge       = "uploads.too_large"
 	ErrKeyUploadEmpty          = "uploads.empty"
-	ErrKeyValidationError      = "validation.error"
 )
 
 // Validation error keys
 const (
 	ErrKeyValidationFailed       = "validation.failed"
-	ErrKeyValidationRequired     = "validation.required"
-	ErrKeyValidationEmail        = "validation.email"
-	ErrKeyValidationMin          = "validation.min"
-	ErrKeyValidationMax          = "validation.max"
-	ErrKeyValidationOneOf        = "validation.oneof"
-	ErrKeyValidationNumeric      = "validation.numeric"
-	ErrKeyValidationAlpha        = "validation.alpha"
-	ErrKeyValidationAlphanum     = "validation.alphanum"
-	ErrKeyValidationURL          = "validation.url"
-	ErrKeyValidationUUID         = "validation.uuid"
 	ErrKeyValidationInvalid      = "validation.invalid"
 	ErrKeyValidationBodyInvalid  = "validation.body_invalid"
 	ErrKeyValidationTypeMismatch = "validation.type_mismatch"
 )
 
-// GetValidationErrorKey returns the error key for a validation rule
-func GetValidationErrorKey(rule string) string {
-	switch rule {
-	case "required":
-		return ErrKeyValidationRequired
-	case "email":
-		return ErrKeyValidationEmail
-	case "min":
-		return ErrKeyValidationMin
-	case "max":
-		return ErrKeyValidationMax
-	case "oneof":
-		return ErrKeyValidationOneOf
-	case "numeric":
-		return ErrKeyValidationNumeric
-	case "alpha":
-		return ErrKeyValidationAlpha
-	case "alphanum":
-		return ErrKeyValidationAlphanum
-	case "url":
-		return ErrKeyValidationURL
-	case "uuid":
-		return ErrKeyValidationUUID
-	default:
-		return ErrKeyValidationInvalid
-	}
+var validationRules = map[string]bool{
+	"required": true, "email": true, "min": true, "max": true, "oneof": true,
+	"numeric": true, "alpha": true, "alphanum": true, "url": true, "uuid": true,
 }
 
-// GetFieldValidationErrorKey returns a field-specific validation error key
-// Format: validation.{field}.{rule}
+// GetFieldValidationErrorKey returns the key for a failed rule on a field:
+// validation.{field}.{rule}, or validation.{field}.invalid for a rule clients have no text for.
 func GetFieldValidationErrorKey(field, rule string) string {
-	baseKey := GetValidationErrorKey(rule)
-	// Convert validation.required to validation.{field}.required
-	if baseKey == ErrKeyValidationRequired {
-		return "validation." + field + ".required"
+	if !validationRules[rule] {
+		rule = "invalid"
 	}
-	if baseKey == ErrKeyValidationEmail {
-		return "validation." + field + ".email"
-	}
-	if baseKey == ErrKeyValidationMin {
-		return "validation." + field + ".min"
-	}
-	if baseKey == ErrKeyValidationMax {
-		return "validation." + field + ".max"
-	}
-	if baseKey == ErrKeyValidationOneOf {
-		return "validation." + field + ".oneof"
-	}
-	if baseKey == ErrKeyValidationNumeric {
-		return "validation." + field + ".numeric"
-	}
-	if baseKey == ErrKeyValidationAlpha {
-		return "validation." + field + ".alpha"
-	}
-	if baseKey == ErrKeyValidationAlphanum {
-		return "validation." + field + ".alphanum"
-	}
-	if baseKey == ErrKeyValidationURL {
-		return "validation." + field + ".url"
-	}
-	if baseKey == ErrKeyValidationUUID {
-		return "validation." + field + ".uuid"
-	}
-	return "validation." + field + ".invalid"
+	return "validation." + field + "." + rule
 }

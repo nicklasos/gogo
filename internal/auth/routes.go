@@ -21,7 +21,7 @@ func RegisterRoutes(app *internal.App) {
 		FrontendURL:          cfg.FrontendURL,
 		AppName:              cfg.AppName,
 	})
-	handler := NewAuthHandler(authService, app.Logger)
+	handler := NewAuthHandler(authService)
 
 	app.AuthMiddleware = middleware.UserAuthMiddleware(authService)
 

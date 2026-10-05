@@ -78,12 +78,6 @@ func ExtractDomainError(err error) *DomainError {
 	}
 }
 
-// IsDomainError checks if an error is a DomainError
-func IsDomainError(err error) bool {
-	var domainErr *DomainError
-	return errors.As(err, &domainErr)
-}
-
 // Common domain error constructors
 
 // NewNotFoundError creates a not found error

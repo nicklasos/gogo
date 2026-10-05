@@ -156,55 +156,6 @@ func TestUploadService_GetUpload(t *testing.T) {
 	})
 }
 
-func TestUploadService_ListUploads(t *testing.T) {
-	t.Run("should list uploads for user", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Create a user and multiple uploads
-			user := helpers.CreateTestUser(t, ctx, tx)
-			upload1 := helpers.CreateTestUpload(t, ctx, tx, user.ID)
-			upload2 := helpers.CreateTestUpload(t, ctx, tx, user.ID)
-
-			tempDir := t.TempDir()
-			config := uploads.DefaultUploadConfig(tempDir, "http://localhost:8181/api/files")
-			service := uploads.NewUploadService(queries, config)
-
-			// Test: List uploads
-			uploads, err := service.ListUploads(ctx, user.ID)
-
-			// Assert: Verify result
-			require.NoError(t, err)
-			assert.NotNil(t, uploads)
-			assert.GreaterOrEqual(t, len(uploads), 2)
-
-			// Verify uploads are in the list
-			uploadIDs := make(map[int32]bool)
-			for _, u := range uploads {
-				uploadIDs[u.ID] = true
-			}
-			assert.True(t, uploadIDs[upload1.ID])
-			assert.True(t, uploadIDs[upload2.ID])
-		})
-	})
-
-	t.Run("should return empty list when user has no uploads", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Create a user
-			user := helpers.CreateTestUser(t, ctx, tx)
-			tempDir := t.TempDir()
-			config := uploads.DefaultUploadConfig(tempDir, "http://localhost:8181/api/files")
-			service := uploads.NewUploadService(queries, config)
-
-			// Test: List uploads
-			uploads, err := service.ListUploads(ctx, user.ID)
-
-			// Assert: Verify result
-			require.NoError(t, err)
-			assert.NotNil(t, uploads)
-			assert.Equal(t, 0, len(uploads))
-		})
-	})
-}
-
 func TestUploadService_DeleteUpload(t *testing.T) {
 	t.Run("should delete upload successfully and remove file from disk", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {

@@ -59,7 +59,6 @@ func ExtractUserIDFromJWT(c *gin.Context, verifier UserJWTVerifier) (*int32, err
 		return nil, errs.WrapDomainError(errs.ErrKeyAuthInvalidToken, "Invalid or expired token", 401, err)
 	}
 
-	// Extract claims
 	claims, ok := token.Claims.(*Claims)
 	if !ok {
 		return nil, errs.NewUnauthorizedError(errs.ErrKeyAuthInvalidToken, "Invalid token claims")
@@ -97,23 +96,6 @@ func UserAuthMiddleware(auth UserAuth) gin.HandlerFunc {
 		c.Set("user_id", *userID)
 		c.Set("user_roles", roles)
 
-		c.Next()
-	}
-}
-
-// OptionalUserAuthMiddleware extracts JWT token and sets user context if present
-// Unlike UserAuthMiddleware, this does NOT abort if no token is provided
-// This allows routes to be accessible to both authenticated and unauthenticated users
-func OptionalUserAuthMiddleware(verifier UserJWTVerifier) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID, err := ExtractUserIDFromJWT(c, verifier)
-
-		// If token is present and valid, set user context
-		if err == nil && userID != nil {
-			c.Set("user_id", *userID)
-		}
-
-		// Continue regardless of authentication status
 		c.Next()
 	}
 }

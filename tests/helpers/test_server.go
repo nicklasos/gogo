@@ -103,7 +103,6 @@ func CreateTestServer(t *testing.T, ctx context.Context, tx pgx.Tx, queries *db.
 		Logger:  testLogger,
 		Mail:    testMail,
 		Api:     router.Group("/api/v1"),
-		Images:  internal.NewImageService(testConfig.FilesBaseURL),
 	}
 
 	server.RegisterRoutes(router, app)

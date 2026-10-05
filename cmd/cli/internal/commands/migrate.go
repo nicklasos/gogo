@@ -51,11 +51,9 @@ func RunMigrate(app *internal.CLIApp, args []string) {
 
 	command := fs.Arg(0)
 
-	// Convert pgx connection to sql.DB for goose
 	sqlDB := stdlib.OpenDB(*app.Database.Config().ConnConfig)
 	defer sqlDB.Close()
 
-	// Set up goose
 	if err := goose.SetDialect(dialect); err != nil {
 		log.Fatalf("Failed to set dialect: %v", err)
 	}

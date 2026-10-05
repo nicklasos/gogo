@@ -15,11 +15,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// GetTestTimestamp returns a test timestamp
-func GetTestTimestamp() pgtype.Timestamp {
-	return pgtype.Timestamp{Time: time.Now(), Valid: true}
-}
-
 // CreateTestUser creates a test user and returns it
 func CreateTestUser(t *testing.T, ctx context.Context, tx pgx.Tx) *db.User {
 	now := pgtype.Timestamp{Time: time.Now(), Valid: true}

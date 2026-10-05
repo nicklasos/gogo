@@ -46,7 +46,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.MessageResponse"
+                            "$ref": "#/definitions/internal.MessageResponse"
                         }
                     },
                     "400": {
@@ -138,7 +138,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.MessageResponse"
+                            "$ref": "#/definitions/internal.MessageResponse"
                         }
                     },
                     "401": {
@@ -278,7 +278,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.MessageResponse"
+                            "$ref": "#/definitions/internal.MessageResponse"
                         }
                     },
                     "400": {
@@ -324,7 +324,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.MessageResponse"
+                            "$ref": "#/definitions/internal.MessageResponse"
                         }
                     },
                     "400": {
@@ -474,7 +474,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.MessageResponse"
+                            "$ref": "#/definitions/internal.MessageResponse"
                         }
                     },
                     "400": {
@@ -520,7 +520,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.MessageResponse"
+                            "$ref": "#/definitions/internal.MessageResponse"
                         }
                     },
                     "400": {
@@ -813,7 +813,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_example.MessageResponse"
+                            "$ref": "#/definitions/internal.MessageResponse"
                         }
                     },
                     "400": {
@@ -1021,7 +1021,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_uploads.MessageResponse"
+                            "$ref": "#/definitions/internal.MessageResponse"
                         }
                     },
                     "401": {
@@ -1285,7 +1285,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_users.MessageResponse"
+                            "$ref": "#/definitions/internal.MessageResponse"
                         }
                     },
                     "400": {
@@ -1361,7 +1361,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_users.MessageResponse"
+                            "$ref": "#/definitions/internal.MessageResponse"
                         }
                     },
                     "400": {
@@ -1421,6 +1421,28 @@
                 },
                 "timestamp": {
                     "type": "string"
+                }
+            }
+        },
+        "internal.MessageData": {
+            "type": "object",
+            "required": [
+                "message"
+            ],
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal.MessageResponse": {
+            "type": "object",
+            "required": [
+                "data"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/internal.MessageData"
                 }
             }
         },
@@ -1500,25 +1522,6 @@
                 },
                 "user": {
                     "$ref": "#/definitions/internal_auth.UserResponse"
-                }
-            }
-        },
-        "internal_auth.MessageResponse": {
-            "type": "object",
-            "required": [
-                "data"
-            ],
-            "properties": {
-                "data": {
-                    "type": "object",
-                    "required": [
-                        "message"
-                    ],
-                    "properties": {
-                        "message": {
-                            "type": "string"
-                        }
-                    }
                 }
             }
         },
@@ -1764,25 +1767,6 @@
                 }
             }
         },
-        "internal_example.MessageResponse": {
-            "type": "object",
-            "required": [
-                "data"
-            ],
-            "properties": {
-                "data": {
-                    "type": "object",
-                    "required": [
-                        "message"
-                    ],
-                    "properties": {
-                        "message": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "internal_example.PaginatedExamplesResponse": {
             "type": "object",
             "required": [
@@ -1812,25 +1796,6 @@
                 },
                 "title": {
                     "type": "string"
-                }
-            }
-        },
-        "internal_uploads.MessageResponse": {
-            "type": "object",
-            "required": [
-                "data"
-            ],
-            "properties": {
-                "data": {
-                    "type": "object",
-                    "required": [
-                        "message"
-                    ],
-                    "properties": {
-                        "message": {
-                            "type": "string"
-                        }
-                    }
                 }
             }
         },
@@ -1947,25 +1912,6 @@
                         "admin",
                         "user"
                     ]
-                }
-            }
-        },
-        "internal_users.MessageResponse": {
-            "type": "object",
-            "required": [
-                "data"
-            ],
-            "properties": {
-                "data": {
-                    "type": "object",
-                    "required": [
-                        "message"
-                    ],
-                    "properties": {
-                        "message": {
-                            "type": "string"
-                        }
-                    }
                 }
             }
         },

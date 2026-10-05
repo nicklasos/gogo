@@ -1,6 +1,33 @@
 package internal
 
-import "math"
+import (
+	"math"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+const timeFormat = "2006-01-02T15:04:05Z07:00"
+
+// FormatTime renders a database timestamp the way every API response does.
+func FormatTime(t pgtype.Timestamp) string {
+	return t.Time.Format(timeFormat)
+}
+
+// MessageResponse is the body of an action that has nothing else to return
+type MessageResponse struct {
+	Data MessageData `json:"data"`
+}
+
+type MessageData struct {
+	Message string `json:"message"`
+}
+
+// RespondMessage answers 200 with a MessageResponse.
+func RespondMessage(c *gin.Context, message string) {
+	c.JSON(http.StatusOK, MessageResponse{Data: MessageData{Message: message}})
+}
 
 // PaginationMeta contains pagination metadata
 type PaginationMeta struct {

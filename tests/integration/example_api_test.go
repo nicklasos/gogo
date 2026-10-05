@@ -6,6 +6,7 @@ import (
 	"app/internal/example"
 	"app/tests/helpers"
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"testing"
@@ -336,5 +337,46 @@ func TestExampleAPI_DeleteExample(t *testing.T) {
 			// Assert: Check response status
 			assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 		})
+	})
+}
+
+func TestExampleAPI_ListCacheIsInvalidatedForEveryPageSize(t *testing.T) {
+	helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
+		server := helpers.CreateTestServer(t, ctx, tx, queries)
+		defer server.Close()
+
+		user := helpers.CreateTestUser(t, ctx, tx)
+		token := helpers.GenerateTestJWT(user.ID, user.Email)
+		titles := func(path string) []string {
+			var page example.PaginatedExamplesResponse
+			resp := server.GETAuth(path, token)
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			require.NoError(t, resp.JSON(&page))
+			out := make([]string, len(page.Data))
+			for i, item := range page.Data {
+				out[i] = item.Title
+			}
+			return out
+		}
+
+		// Page sizes and pages well outside anything a fixed list of keys would cover
+		paths := []string{"/api/v1/examples?page=1&page_size=7", "/api/v1/examples?page=1&page_size=33", "/api/v1/examples?page=9&page_size=1"}
+		for _, path := range paths {
+			assert.Empty(t, titles(path), "warm the cache: %s", path)
+		}
+
+		var created example.ExampleDataResponse
+		require.NoError(t, server.POSTAuth("/api/v1/examples", `{"title": "Fresh", "description": ""}`, token).JSON(&created))
+		assert.Equal(t, []string{"Fresh"}, titles(paths[0]))
+		assert.Equal(t, []string{"Fresh"}, titles(paths[1]))
+
+		resp := server.PUTAuth(fmt.Sprintf("/api/v1/examples/%d", created.Data.ID), `{"title": "Renamed", "description": ""}`, token)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, []string{"Renamed"}, titles(paths[0]))
+
+		require.Equal(t, http.StatusOK, server.DELETEAuth(fmt.Sprintf("/api/v1/examples/%d", created.Data.ID), token).StatusCode)
+		for _, path := range paths {
+			assert.Empty(t, titles(path), path)
+		}
 	})
 }

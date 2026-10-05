@@ -24,9 +24,3 @@ func IsNotFound(err error) bool {
 	domainErr := ExtractDomainError(err)
 	return domainErr != nil && domainErr.Status == http.StatusNotFound
 }
-
-// IsBadRequest checks if error is a bad request error (status 400)
-func IsBadRequest(err error) bool {
-	domainErr := ExtractDomainError(err)
-	return domainErr != nil && domainErr.Status == http.StatusBadRequest
-}

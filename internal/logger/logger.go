@@ -24,7 +24,6 @@ type Config struct {
 
 // New creates a new structured logger
 func New(cfg Config) (*Logger, error) {
-	// Parse log level
 	var level slog.Level
 	switch cfg.Level {
 	case "debug":
@@ -39,9 +38,7 @@ func New(cfg Config) (*Logger, error) {
 		level = slog.LevelInfo
 	}
 
-	// Configure output writer
 	var writer io.Writer
-	// Trim whitespace from config value to handle potential formatting issues
 	output := strings.TrimSpace(cfg.Output)
 
 	switch output {
@@ -50,14 +47,12 @@ func New(cfg Config) (*Logger, error) {
 	case "stderr":
 		writer = os.Stderr
 	case "both":
-		// Default: write to both file and stdout
 		file, err := createLogFile("logs/app.log")
 		if err != nil {
 			return nil, err
 		}
 		writer = io.MultiWriter(file, os.Stdout)
 	default:
-		// File path specified or default to logs/app.log
 		if output == "" {
 			output = "logs/app.log"
 		}
@@ -68,13 +63,11 @@ func New(cfg Config) (*Logger, error) {
 		writer = io.MultiWriter(file, os.Stdout) // Always include stdout for K8s
 	}
 
-	// Configure handler options
 	opts := &slog.HandlerOptions{
 		Level:     level,
 		AddSource: cfg.AddSource,
 	}
 
-	// Choose handler based on format
 	var handler slog.Handler
 	if cfg.Format == "json" {
 		handler = slog.NewJSONHandler(writer, opts)
@@ -93,7 +86,6 @@ func New(cfg Config) (*Logger, error) {
 
 // createLogFile creates log file with proper permissions
 func createLogFile(filename string) (*os.File, error) {
-	// Create logs directory if it doesn't exist
 	logDir := filepath.Dir(filename)
 	if logDir != "." && logDir != "" {
 		if err := os.MkdirAll(logDir, 0755); err != nil {
@@ -101,7 +93,6 @@ func createLogFile(filename string) (*os.File, error) {
 		}
 	}
 
-	// Open file with append mode
 	return os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 }
 

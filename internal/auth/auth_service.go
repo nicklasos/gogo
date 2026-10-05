@@ -94,13 +94,12 @@ func NewAuthService(queries *db.Queries, tx *db.TxRunner, mailer mail.Sender, lo
 
 // Register creates a new user account
 func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*TokenPair, *db.User, error) {
-	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// Create user (let DB enforce uniqueness to avoid race conditions)
+	// No "does it exist" check first: the unique index decides, which leaves no race between two sign-ups
 	user, err := s.queries.CreateUser(ctx, db.CreateUserParams{
 		Email:    internal.NormalizeEmail(req.Email),
 		Name:     req.Name,
@@ -117,7 +116,6 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*Token
 		return nil, nil, errs.WrapDatabaseError(err)
 	}
 
-	// Generate token pair
 	tokenPair, err := s.generateTokenPair(ctx, s.queries, user)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate tokens: %w", err)
@@ -128,19 +126,16 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*Token
 
 // Login authenticates a user and returns tokens
 func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*TokenPair, *db.User, error) {
-	// Get user by email
 	user, err := s.queries.GetUserByEmail(ctx, internal.NormalizeEmail(req.Email))
 	if err != nil {
 		return nil, nil, ErrInvalidCredentials
 	}
 
-	// Verify password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
 		return nil, nil, ErrInvalidCredentials
 	}
 
-	// Generate token pair
 	tokenPair, err := s.generateTokenPair(ctx, s.queries, user)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate tokens: %w", err)
@@ -151,14 +146,12 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*TokenPair, 
 
 // RefreshToken generates a new token pair using a refresh token
 func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*TokenPair, error) {
-	// Get refresh token from database
 	tokenHash := hashToken(refreshToken)
 	dbToken, err := s.queries.GetRefreshToken(ctx, tokenHash)
 	if err != nil {
 		return nil, ErrInvalidToken
 	}
 
-	// Get user
 	user, err := s.queries.GetUserByID(ctx, dbToken.UserID)
 	if err != nil {
 		return nil, ErrUserNotFound
