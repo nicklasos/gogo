@@ -18,6 +18,7 @@ import (
 	"app/internal/db"
 	"app/internal/logger"
 	"app/internal/mail"
+	"app/internal/monitoring"
 	"app/internal/redis"
 	"app/internal/scheduler"
 	"app/internal/server"
@@ -73,12 +74,23 @@ func main() {
 		log.Fatal(err)
 	}
 
+	redisClient, err := redis.NewConnection(cfg)
+	if err != nil {
+		log.Fatal("Failed to connect to Redis:", err)
+	}
+	defer redisClient.Close()
+
+	// Created before the logger and the database pool, because it observes both
+	pulse := monitoring.New(cfg, redisClient)
+	defer monitoring.Close(pulse)
+
 	logger, err := logger.New(logger.Config{
 		Level:     cfg.LogLevel,
 		Format:    cfg.LogFormat,
 		Output:    cfg.LogOutput,
 		AddSource: cfg.Debug,
 		RequestID: true,
+		Wrap:      monitoring.LogHandler(pulse),
 	})
 	if err != nil {
 		log.Fatal("Failed to initialize logger:", err)
@@ -94,8 +106,11 @@ func main() {
 	if cfg.JWTSecretIsWeak() {
 		logger.Warn("JWT_SECRET is weak: fine for local development, refused when APP_ENV=production")
 	}
+	if pulse != nil {
+		logger.Info("Monitoring dashboard enabled", "path", cfg.PulsePath)
+	}
 
-	database, err := db.NewConnection(cfg)
+	database, err := db.NewConnection(cfg, monitoring.QueryTracer(pulse))
 	if err != nil {
 		logger.Error("Failed to connect to database", "error", err)
 		log.Fatal("Failed to connect to database:", err)
@@ -104,14 +119,7 @@ func main() {
 
 	queries := db.New(database)
 
-	redisClient, err := redis.NewConnection(cfg)
-	if err != nil {
-		logger.Error("Failed to connect to Redis", "error", err)
-		log.Fatal("Failed to connect to Redis:", err)
-	}
-	defer redisClient.Close()
-
-	r := server.NewEngine(cfg, logger)
+	r := server.NewEngine(cfg, logger, pulse)
 
 	app := &internal.App{
 		Config:  cfg,
@@ -121,6 +129,7 @@ func main() {
 		Cache:   cache.NewRedisCache(redisClient, cfg.AppName+":"),
 		Logger:  logger,
 		Mail:    mail.NewService(cfg, logger),
+		Pulse:   pulse,
 		Api:     r.Group("/api/v1"),
 	}
 

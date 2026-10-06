@@ -1,16 +1,18 @@
 package integration
 
 import (
-	"app/internal/auth"
-	"app/internal/db"
-	"app/internal/errs"
-	"app/internal/middleware"
-	"app/tests/helpers"
 	"context"
 	"fmt"
 	"net/http"
 	"testing"
 	"time"
+
+	"app/internal/auth"
+	"app/internal/db"
+	"app/internal/errs"
+	"app/internal/factory"
+	"app/internal/middleware"
+	"app/tests/helpers"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
@@ -336,7 +338,7 @@ func TestAuthAPI_GetMe_Roles(t *testing.T) {
 		server := helpers.CreateTestServer(t, ctx, tx, queries)
 		defer server.Close()
 
-		user := helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleSuperAdmin)
+		user := factory.User(t, tx, factory.WithRoles(middleware.RoleSuperAdmin))
 		token := helpers.GenerateTestJWT(user.ID, user.Email)
 
 		resp := server.GETAuth("/api/v1/auth/me", token)
@@ -354,7 +356,7 @@ func TestAuthAPI_UpdateMe(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			token := helpers.GenerateTestJWT(user.ID, user.Email)
 
 			resp := server.PUTAuth("/api/v1/auth/me", `{"email": "updated@example.com", "name": "Updated"}`, token)
@@ -372,8 +374,8 @@ func TestAuthAPI_UpdateMe(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			other := helpers.CreateTestUserWithEmail(t, ctx, tx, "taken@example.com")
-			user := helpers.CreateTestUser(t, ctx, tx)
+			other := factory.User(t, tx, factory.WithEmail("taken@example.com"))
+			user := factory.User(t, tx)
 			token := helpers.GenerateTestJWT(user.ID, user.Email)
 
 			resp := server.PUTAuth("/api/v1/auth/me", fmt.Sprintf(`{"email": %q, "name": "Updated"}`, other.Email), token)
@@ -402,7 +404,7 @@ func TestAuthAPI_UpdatePassword(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			login := func(password string) *helpers.TestResponse {
 				return server.POST("/api/v1/auth/login", fmt.Sprintf(`{"email": %q, "password": %q}`, user.Email, password))
 			}
@@ -426,7 +428,7 @@ func TestAuthAPI_UpdatePassword(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			token := helpers.GenerateTestJWT(user.ID, user.Email)
 
 			resp := server.PUTAuth("/api/v1/auth/me/password", `{"current_password": "wrong", "new_password": "new-password-1"}`, token)
@@ -444,7 +446,7 @@ func TestAuthAPI_RefreshTokenIsSingleUse(t *testing.T) {
 		server := helpers.CreateTestServer(t, ctx, tx, queries)
 		defer server.Close()
 
-		user := helpers.CreateTestUser(t, ctx, tx)
+		user := factory.User(t, tx)
 
 		var session auth.LoginDataResponse
 		resp := server.POST("/api/v1/auth/login", fmt.Sprintf(`{"email": %q, "password": "password123"}`, user.Email))

@@ -1,17 +1,19 @@
 package integration
 
 import (
-	"app/config"
-	"app/internal/auth"
-	"app/internal/db"
-	"app/internal/errs"
-	"app/internal/mail"
-	"app/tests/helpers"
 	"context"
 	"fmt"
 	"net/http"
 	"regexp"
 	"testing"
+
+	"app/config"
+	"app/internal/auth"
+	"app/internal/db"
+	"app/internal/errs"
+	"app/internal/factory"
+	"app/internal/mail"
+	"app/tests/helpers"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +40,7 @@ func TestAuthAPI_PasswordReset(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx, factory.Unverified())
 
 			var session auth.LoginDataResponse
 			resp := server.POST("/api/v1/auth/login", fmt.Sprintf(`{"email": %q, "password": "password123"}`, user.Email))
@@ -86,7 +88,7 @@ func TestAuthAPI_PasswordReset(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			body := fmt.Sprintf(`{"email": %q}`, user.Email)
 			server.POST("/api/v1/auth/forgot-password", body)
 			server.POST("/api/v1/auth/forgot-password", body)
@@ -109,7 +111,7 @@ func TestAuthAPI_PasswordReset(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx, factory.Unverified())
 			token := helpers.GenerateTestJWT(user.ID, user.Email)
 
 			server.POST("/api/v1/auth/forgot-password", fmt.Sprintf(`{"email": %q}`, user.Email))
@@ -137,7 +139,7 @@ func TestAuthAPI_PasswordReset(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			server.POST("/api/v1/auth/forgot-password", fmt.Sprintf(`{"email": %q}`, user.Email))
 			token := emailToken(t, server.Mail.Sent()[0])
 
@@ -181,7 +183,7 @@ func TestAuthAPI_EmailVerification(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx, factory.Unverified())
 			token := helpers.GenerateTestJWT(user.ID, user.Email)
 
 			require.Equal(t, http.StatusOK, server.POSTAuth("/api/v1/auth/me/verify-email", nil, token).StatusCode)
@@ -198,7 +200,7 @@ func TestAuthAPI_EmailVerification(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			require.NoError(t, queries.MarkUserEmailVerified(ctx, user.ID))
 			token := helpers.GenerateTestJWT(user.ID, user.Email)
 
@@ -223,7 +225,7 @@ func TestAuthAPI_EmailVerification(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			admin := helpers.CreateTestUserWithRoles(t, ctx, tx, "super-admin")
+			admin := factory.User(t, tx, factory.WithRoles("super-admin"))
 			token := helpers.GenerateTestJWT(admin.ID, admin.Email)
 
 			var created struct {
@@ -265,7 +267,7 @@ func TestAuthAPI_LoginRateLimit(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			other := helpers.CreateTestUser(t, ctx, tx)
+			other := factory.User(t, tx)
 
 			for i := 0; i < 40; i++ {
 				require.Equal(t, http.StatusUnauthorized, loginStatus(server, "target@example.com", "wrong"), "attempt %d", i+1)
@@ -289,7 +291,7 @@ func TestAuthAPI_LoginRateLimit(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			user := helpers.CreateTestUserWithRoles(t, ctx, tx, "user")
+			user := factory.User(t, tx, factory.WithRoles("user"))
 
 			for round := 0; round < 2; round++ {
 				for i := 0; i < 25; i++ {

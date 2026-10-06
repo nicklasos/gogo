@@ -44,7 +44,7 @@ func exampleResponse(example *db.Example) *ExampleResponse {
 //	@Failure		500		{object}	errs.ErrorResponse
 //	@Router			/api/v1/examples [post]
 func (h *Handler) CreateExample(c *gin.Context) {
-	userID, ok := middleware.CurrentUserID(c)
+	actor, ok := middleware.CurrentActor(c)
 	if !ok {
 		return
 	}
@@ -55,7 +55,7 @@ func (h *Handler) CreateExample(c *gin.Context) {
 		return
 	}
 
-	example, err := h.service.CreateExample(c.Request.Context(), userID, req.Title, req.Description)
+	example, err := h.service.CreateExample(c.Request.Context(), actor, req.Title, req.Description)
 	if err != nil {
 		errs.RespondWithError(c, err)
 		return
@@ -76,11 +76,12 @@ func (h *Handler) CreateExample(c *gin.Context) {
 //	@Success		200	{object}	ExampleDataResponse
 //	@Failure		400	{object}	errs.ErrorResponse
 //	@Failure		401	{object}	errs.ErrorResponse
+//	@Failure		403	{object}	errs.ErrorResponse
 //	@Failure		404	{object}	errs.ErrorResponse
 //	@Failure		500	{object}	errs.ErrorResponse
 //	@Router			/api/v1/examples/{id} [get]
 func (h *Handler) GetExample(c *gin.Context) {
-	userID, ok := middleware.CurrentUserID(c)
+	actor, ok := middleware.CurrentActor(c)
 	if !ok {
 		return
 	}
@@ -89,7 +90,7 @@ func (h *Handler) GetExample(c *gin.Context) {
 		return
 	}
 
-	example, err := h.service.GetExample(c.Request.Context(), id, userID)
+	example, err := h.service.GetExample(c.Request.Context(), actor, id)
 	if err != nil {
 		errs.RespondWithError(c, err)
 		return
@@ -153,11 +154,12 @@ func (h *Handler) ListExamples(c *gin.Context) {
 //	@Success		200		{object}	ExampleDataResponse
 //	@Failure		400		{object}	errs.ErrorResponse
 //	@Failure		401		{object}	errs.ErrorResponse
+//	@Failure		403	{object}	errs.ErrorResponse
 //	@Failure		404		{object}	errs.ErrorResponse
 //	@Failure		500		{object}	errs.ErrorResponse
 //	@Router			/api/v1/examples/{id} [put]
 func (h *Handler) UpdateExample(c *gin.Context) {
-	userID, ok := middleware.CurrentUserID(c)
+	actor, ok := middleware.CurrentActor(c)
 	if !ok {
 		return
 	}
@@ -172,7 +174,7 @@ func (h *Handler) UpdateExample(c *gin.Context) {
 		return
 	}
 
-	example, err := h.service.UpdateExample(c.Request.Context(), id, userID, req.Title, req.Description)
+	example, err := h.service.UpdateExample(c.Request.Context(), actor, id, req.Title, req.Description)
 	if err != nil {
 		errs.RespondWithError(c, err)
 		return
@@ -193,11 +195,12 @@ func (h *Handler) UpdateExample(c *gin.Context) {
 //	@Success		200	{object}	internal.MessageResponse
 //	@Failure		400	{object}	errs.ErrorResponse
 //	@Failure		401	{object}	errs.ErrorResponse
+//	@Failure		403	{object}	errs.ErrorResponse
 //	@Failure		404	{object}	errs.ErrorResponse
 //	@Failure		500	{object}	errs.ErrorResponse
 //	@Router			/api/v1/examples/{id} [delete]
 func (h *Handler) DeleteExample(c *gin.Context) {
-	userID, ok := middleware.CurrentUserID(c)
+	actor, ok := middleware.CurrentActor(c)
 	if !ok {
 		return
 	}
@@ -206,7 +209,7 @@ func (h *Handler) DeleteExample(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteExample(c.Request.Context(), id, userID); err != nil {
+	if err := h.service.DeleteExample(c.Request.Context(), actor, id); err != nil {
 		errs.RespondWithError(c, err)
 		return
 	}

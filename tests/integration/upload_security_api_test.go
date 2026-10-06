@@ -1,10 +1,6 @@
 package integration
 
 import (
-	"app/internal/db"
-	"app/internal/errs"
-	"app/internal/uploads"
-	"app/tests/helpers"
 	"bytes"
 	"context"
 	"fmt"
@@ -13,6 +9,12 @@ import (
 	"net/textproto"
 	"strings"
 	"testing"
+
+	"app/internal/db"
+	"app/internal/errs"
+	"app/internal/factory"
+	"app/internal/uploads"
+	"app/tests/helpers"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
@@ -44,7 +46,7 @@ func TestUploadAPI_ContentChecks(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			token := helpers.GenerateTestJWT(user.ID, user.Email)
 			html := []byte("<html><body><script>alert(1)</script></body></html>")
 
@@ -78,7 +80,7 @@ func TestUploadAPI_ContentChecks(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			token := helpers.GenerateTestJWT(user.ID, user.Email)
 
 			resp := uploadFile(t, server, token, "../../evil/Photo.JPG", "text/html", helpers.TestJPEG)
@@ -105,7 +107,7 @@ func TestUploadAPI_ContentChecks(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			token := helpers.GenerateTestJWT(user.ID, user.Email)
 
 			assertErrorKey(t, uploadFile(t, server, token, "run.exe", "application/octet-stream", []byte("MZ")), http.StatusBadRequest, errs.ErrKeyUploadTypeNotAllowed)
@@ -120,7 +122,7 @@ func TestUploadAPI_PublicFiles(t *testing.T) {
 		server := helpers.CreateTestServer(t, ctx, tx, queries)
 		defer server.Close()
 
-		user := helpers.CreateTestUser(t, ctx, tx)
+		user := factory.User(t, tx)
 		token := helpers.GenerateTestJWT(user.ID, user.Email)
 
 		var created uploads.UploadDataResponse
@@ -156,13 +158,13 @@ func TestUploadAPI_ListIsPaginatedAndScopedToTheUser(t *testing.T) {
 		server := helpers.CreateTestServer(t, ctx, tx, queries)
 		defer server.Close()
 
-		user := helpers.CreateTestUser(t, ctx, tx)
-		other := helpers.CreateTestUserWithEmail(t, ctx, tx, "other-uploader@example.com")
+		user := factory.User(t, tx)
+		other := factory.User(t, tx, factory.WithEmail("other-uploader@example.com"))
 		token := helpers.GenerateTestJWT(user.ID, user.Email)
 		for i := 0; i < 3; i++ {
-			helpers.CreateTestUpload(t, ctx, tx, user.ID)
+			factory.Upload(t, tx, user.ID)
 		}
-		foreign := helpers.CreateTestUpload(t, ctx, tx, other.ID)
+		foreign := factory.Upload(t, tx, other.ID)
 
 		var page uploads.PaginatedUploadsResponse
 		resp := server.GETAuth("/api/v1/uploads?page=1&page_size=2", token)

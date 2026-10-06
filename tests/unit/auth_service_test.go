@@ -7,6 +7,7 @@ import (
 
 	"app/internal/auth"
 	"app/internal/db"
+	"app/internal/factory"
 	"app/internal/mail"
 	"app/tests/helpers"
 
@@ -47,7 +48,7 @@ func TestAuthService_Register(t *testing.T) {
 	t.Run("should return error when user already exists", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create existing user
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 
 			jwtSecret := []byte("test-secret-key")
 			testLogger := helpers.GetTestLogger(t)
@@ -261,7 +262,7 @@ func TestAuthService_GetUserFromContext(t *testing.T) {
 	t.Run("should get user by ID successfully", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 
 			jwtSecret := []byte("test-secret-key")
 			testLogger := helpers.GetTestLogger(t)

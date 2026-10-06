@@ -43,6 +43,11 @@ type Config struct {
 	// TrustedProxies are the proxies whose X-Forwarded-For is believed when resolving the client IP
 	TrustedProxies []string
 
+	// Monitoring dashboard (gopulse). It is off until PulsePassword is set.
+	PulseUsername string
+	PulsePassword string
+	PulsePath     string
+
 	// Mail (SMTP)
 	MailMailer      string
 	MailScheme      string
@@ -90,6 +95,10 @@ func Load() (*Config, error) {
 		AuthRateLimit:        getEnvBool("AUTH_RATE_LIMIT", true),
 		FrontendURL:          strings.TrimRight(getEnv("FRONTEND_URL", "http://localhost:5173"), "/"),
 		TrustedProxies:       getEnvListDefault("TRUSTED_PROXIES", []string{"127.0.0.1", "::1"}),
+
+		PulseUsername: getEnv("PULSE_USERNAME", "admin"),
+		PulsePassword: getEnv("PULSE_PASSWORD", ""),
+		PulsePath:     getEnv("PULSE_PATH", "/_pulse"),
 
 		MailMailer:      getEnv("MAIL_MAILER", "smtp"),
 		MailScheme:      getEnv("MAIL_SCHEME", "smtp"),

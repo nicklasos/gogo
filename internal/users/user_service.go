@@ -3,7 +3,6 @@ package users
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"app/internal"
 	"app/internal/db"
@@ -34,25 +33,8 @@ func NewUserService(queries *db.Queries, tx *db.TxRunner) *UserService {
 	return &UserService{queries: queries, tx: tx}
 }
 
-// CanManage is the single rule for who may manage whom: a super admin manages everyone,
-// an admin manages only accounts whose every role is "user".
-func CanManage(callerRoles, targetRoles []string) bool {
-	if slices.Contains(callerRoles, middleware.RoleSuperAdmin) {
-		return true
-	}
-	if !slices.Contains(callerRoles, middleware.RoleAdmin) || len(targetRoles) == 0 {
-		return false
-	}
-	for _, role := range targetRoles {
-		if role != middleware.RoleUser {
-			return false
-		}
-	}
-	return true
-}
-
-func (s *UserService) ListByRole(ctx context.Context, callerRoles []string, role string, page, pageSize int32) (*PaginatedUsers, error) {
-	if !CanManage(callerRoles, []string{role}) {
+func (s *UserService) ListByRole(ctx context.Context, actor middleware.Actor, role string, page, pageSize int32) (*PaginatedUsers, error) {
+	if !CanManage(actor, []string{role}) {
 		return nil, ErrForbiddenRole
 	}
 
@@ -73,8 +55,8 @@ func (s *UserService) ListByRole(ctx context.Context, callerRoles []string, role
 	return &PaginatedUsers{Data: users, Total: total}, nil
 }
 
-func (s *UserService) Create(ctx context.Context, callerRoles []string, req CreateUserRequest) (*db.User, error) {
-	if !CanManage(callerRoles, []string{req.Role}) {
+func (s *UserService) Create(ctx context.Context, actor middleware.Actor, req CreateUserRequest) (*db.User, error) {
+	if !CanManage(actor, []string{req.Role}) {
 		return nil, ErrForbiddenRole
 	}
 
@@ -100,8 +82,8 @@ func (s *UserService) Create(ctx context.Context, callerRoles []string, req Crea
 	return &user, nil
 }
 
-func (s *UserService) Update(ctx context.Context, callerRoles []string, id int32, req UpdateUserRequest) (*db.User, error) {
-	if err := s.requireManageable(ctx, callerRoles, id); err != nil {
+func (s *UserService) Update(ctx context.Context, actor middleware.Actor, id int32, req UpdateUserRequest) (*db.User, error) {
+	if err := s.requireManageable(ctx, actor, id); err != nil {
 		return nil, err
 	}
 
@@ -121,8 +103,8 @@ func (s *UserService) Update(ctx context.Context, callerRoles []string, id int32
 }
 
 // SetPassword replaces the password and revokes the user's refresh tokens.
-func (s *UserService) SetPassword(ctx context.Context, callerRoles []string, id int32, password string) error {
-	if err := s.requireManageable(ctx, callerRoles, id); err != nil {
+func (s *UserService) SetPassword(ctx context.Context, actor middleware.Actor, id int32, password string) error {
+	if err := s.requireManageable(ctx, actor, id); err != nil {
 		return err
 	}
 
@@ -144,11 +126,11 @@ func (s *UserService) SetPassword(ctx context.Context, callerRoles []string, id 
 
 // Delete removes a user. Deleting yourself is refused, which also guarantees
 // that the last super admin can never be deleted.
-func (s *UserService) Delete(ctx context.Context, callerID int32, callerRoles []string, id int32) error {
-	if id == callerID {
+func (s *UserService) Delete(ctx context.Context, actor middleware.Actor, id int32) error {
+	if id == actor.ID {
 		return ErrCannotDeleteSelf
 	}
-	if err := s.requireManageable(ctx, callerRoles, id); err != nil {
+	if err := s.requireManageable(ctx, actor, id); err != nil {
 		return err
 	}
 	if err := s.queries.DeleteUser(ctx, id); err != nil {
@@ -157,12 +139,12 @@ func (s *UserService) Delete(ctx context.Context, callerID int32, callerRoles []
 	return nil
 }
 
-func (s *UserService) requireManageable(ctx context.Context, callerRoles []string, id int32) error {
+func (s *UserService) requireManageable(ctx context.Context, actor middleware.Actor, id int32) error {
 	user, err := s.queries.GetUserByID(ctx, id)
 	if err != nil {
 		return ErrUserNotFound
 	}
-	if !CanManage(callerRoles, user.Roles) {
+	if !CanManage(actor, user.Roles) {
 		return ErrForbiddenRole
 	}
 	return nil

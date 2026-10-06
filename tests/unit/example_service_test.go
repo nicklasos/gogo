@@ -6,6 +6,7 @@ import (
 
 	"app/internal/db"
 	"app/internal/example"
+	"app/internal/factory"
 	"app/tests/helpers"
 
 	"github.com/jackc/pgx/v5"
@@ -17,11 +18,11 @@ func TestExampleService_CreateExample(t *testing.T) {
 	t.Run("should create example successfully", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			service := example.NewExampleService(queries, nil)
 
 			// Test: Create example
-			createdExample, err := service.CreateExample(ctx, user.ID, "Test Title", "Test Description")
+			createdExample, err := service.CreateExample(ctx, helpers.Actor(user), "Test Title", "Test Description")
 
 			// Assert: Verify result
 			require.NoError(t, err)
@@ -36,11 +37,11 @@ func TestExampleService_CreateExample(t *testing.T) {
 	t.Run("should create example with empty description", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			service := example.NewExampleService(queries, nil)
 
 			// Test: Create example with empty description
-			createdExample, err := service.CreateExample(ctx, user.ID, "Test Title", "")
+			createdExample, err := service.CreateExample(ctx, helpers.Actor(user), "Test Title", "")
 
 			// Assert: Verify result
 			require.NoError(t, err)
@@ -55,12 +56,12 @@ func TestExampleService_GetExample(t *testing.T) {
 	t.Run("should get example successfully", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user and example
-			user := helpers.CreateTestUser(t, ctx, tx)
-			testExample := helpers.CreateTestExample(t, ctx, tx, user.ID)
+			user := factory.User(t, tx)
+			testExample := factory.Example(t, tx, user.ID)
 			service := example.NewExampleService(queries, nil)
 
 			// Test: Get example
-			result, err := service.GetExample(ctx, testExample.ID, user.ID)
+			result, err := service.GetExample(ctx, helpers.Actor(user), testExample.ID)
 
 			// Assert: Verify result
 			require.NoError(t, err)
@@ -74,11 +75,11 @@ func TestExampleService_GetExample(t *testing.T) {
 	t.Run("should return error when example not found", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			service := example.NewExampleService(queries, nil)
 
 			// Test: Get non-existent example
-			result, err := service.GetExample(ctx, 99999, user.ID)
+			result, err := service.GetExample(ctx, helpers.Actor(user), 99999)
 
 			// Assert: Should return error
 			assert.Error(t, err)
@@ -90,17 +91,16 @@ func TestExampleService_GetExample(t *testing.T) {
 	t.Run("should return error when example belongs to different user", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create two users and example for first user
-			user1 := helpers.CreateTestUser(t, ctx, tx)
-			user2 := helpers.CreateTestUser(t, ctx, tx)
-			testExample := helpers.CreateTestExample(t, ctx, tx, user1.ID)
+			user1 := factory.User(t, tx)
+			user2 := factory.User(t, tx)
+			testExample := factory.Example(t, tx, user1.ID)
 			service := example.NewExampleService(queries, nil)
 
 			// Test: Try to get example with different user ID
-			result, err := service.GetExample(ctx, testExample.ID, user2.ID)
+			result, err := service.GetExample(ctx, helpers.Actor(user2), testExample.ID)
 
-			// Assert: Should return error
-			assert.Error(t, err)
-			assert.Equal(t, example.ErrExampleNotFound, err)
+			// Assert: it exists, but it is not theirs
+			assert.Equal(t, example.ErrExampleForbidden, err)
 			assert.Nil(t, result)
 		})
 	})
@@ -110,12 +110,12 @@ func TestExampleService_UpdateExample(t *testing.T) {
 	t.Run("should update example successfully", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user and example
-			user := helpers.CreateTestUser(t, ctx, tx)
-			testExample := helpers.CreateTestExample(t, ctx, tx, user.ID)
+			user := factory.User(t, tx)
+			testExample := factory.Example(t, tx, user.ID)
 			service := example.NewExampleService(queries, nil)
 
 			// Test: Update example
-			updatedExample, err := service.UpdateExample(ctx, testExample.ID, user.ID, "Updated Title", "Updated Description")
+			updatedExample, err := service.UpdateExample(ctx, helpers.Actor(user), testExample.ID, "Updated Title", "Updated Description")
 
 			// Assert: Verify result
 			require.NoError(t, err)
@@ -129,11 +129,11 @@ func TestExampleService_UpdateExample(t *testing.T) {
 	t.Run("should return error when example not found", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			service := example.NewExampleService(queries, nil)
 
 			// Test: Update non-existent example
-			result, err := service.UpdateExample(ctx, 99999, user.ID, "Title", "Description")
+			result, err := service.UpdateExample(ctx, helpers.Actor(user), 99999, "Title", "Description")
 
 			// Assert: Should return error
 			assert.Error(t, err)
@@ -147,18 +147,18 @@ func TestExampleService_DeleteExample(t *testing.T) {
 	t.Run("should delete example successfully", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user and example
-			user := helpers.CreateTestUser(t, ctx, tx)
-			testExample := helpers.CreateTestExample(t, ctx, tx, user.ID)
+			user := factory.User(t, tx)
+			testExample := factory.Example(t, tx, user.ID)
 			service := example.NewExampleService(queries, nil)
 
 			// Test: Delete example
-			err := service.DeleteExample(ctx, testExample.ID, user.ID)
+			err := service.DeleteExample(ctx, helpers.Actor(user), testExample.ID)
 
 			// Assert: Verify result
 			require.NoError(t, err)
 
 			// Verify example is deleted
-			_, err = service.GetExample(ctx, testExample.ID, user.ID)
+			_, err = service.GetExample(ctx, helpers.Actor(user), testExample.ID)
 			assert.Error(t, err)
 			assert.Equal(t, example.ErrExampleNotFound, err)
 		})
@@ -167,11 +167,11 @@ func TestExampleService_DeleteExample(t *testing.T) {
 	t.Run("should return error when example not found", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			service := example.NewExampleService(queries, nil)
 
 			// Test: Delete non-existent example
-			err := service.DeleteExample(ctx, 99999, user.ID)
+			err := service.DeleteExample(ctx, helpers.Actor(user), 99999)
 
 			// Assert: Should return error
 			assert.Error(t, err)
@@ -184,9 +184,9 @@ func TestExampleService_ListExamplesPaginated(t *testing.T) {
 	t.Run("should list paginated examples", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user and multiple examples
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			for i := 0; i < 5; i++ {
-				helpers.CreateTestExample(t, ctx, tx, user.ID)
+				factory.Example(t, tx, user.ID)
 			}
 			service := example.NewExampleService(queries, nil)
 
@@ -204,9 +204,9 @@ func TestExampleService_ListExamplesPaginated(t *testing.T) {
 	t.Run("should handle pagination correctly", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user and multiple examples
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			for i := 0; i < 5; i++ {
-				helpers.CreateTestExample(t, ctx, tx, user.ID)
+				factory.Example(t, tx, user.ID)
 			}
 			service := example.NewExampleService(queries, nil)
 

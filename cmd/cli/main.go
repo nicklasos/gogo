@@ -43,6 +43,8 @@ func main() {
 		commands.RunMigrate(app, args)
 	case "create-user":
 		commands.RunCreateUser(app, args)
+	case "seed":
+		commands.RunSeed(app, args)
 	case "mail":
 		commands.RunMail(app, args)
 	case "test":
@@ -102,6 +104,7 @@ func printUsage() {
 	fmt.Println("Available Commands:")
 	fmt.Println("  migrate              Run database migrations")
 	fmt.Println("  create-user          Create a user (default role: super-admin)")
+	fmt.Println("  seed                 Fill an empty development database with accounts and sample data")
 	fmt.Println("  mail                 Send a test email through the configured SMTP server")
 	fmt.Println("  test                 Check the database connection")
 	fmt.Println("  help                 Show this help message")

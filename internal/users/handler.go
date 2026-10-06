@@ -54,6 +54,10 @@ func userResponseFromDB(user db.User) UserResponse {
 //	@Failure		500			{object}	errs.ErrorResponse
 //	@Router			/api/v1/users [get]
 func (h *Handler) ListUsers(c *gin.Context) {
+	actor, ok := middleware.CurrentActor(c)
+	if !ok {
+		return
+	}
 	role := c.DefaultQuery("role", middleware.RoleUser)
 	if !slices.Contains(middleware.Roles, role) {
 		errs.RespondWithBadRequest(c, errs.ErrKeyBadRequest, "Invalid role")
@@ -65,7 +69,7 @@ func (h *Handler) ListUsers(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.ListByRole(c.Request.Context(), middleware.GetUserRolesFromContext(c), role, pagination.Page, pagination.PageSize)
+	result, err := h.service.ListByRole(c.Request.Context(), actor, role, pagination.Page, pagination.PageSize)
 	if err != nil {
 		errs.RespondWithError(c, err)
 		return
@@ -98,13 +102,17 @@ func (h *Handler) ListUsers(c *gin.Context) {
 //	@Failure		500		{object}	errs.ErrorResponse
 //	@Router			/api/v1/users [post]
 func (h *Handler) CreateUser(c *gin.Context) {
+	actor, ok := middleware.CurrentActor(c)
+	if !ok {
+		return
+	}
 	var req CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errs.RespondWithValidationError(c, err)
 		return
 	}
 
-	user, err := h.service.Create(c.Request.Context(), middleware.GetUserRolesFromContext(c), req)
+	user, err := h.service.Create(c.Request.Context(), actor, req)
 	if err != nil {
 		errs.RespondWithError(c, err)
 		return
@@ -131,6 +139,10 @@ func (h *Handler) CreateUser(c *gin.Context) {
 //	@Failure		500		{object}	errs.ErrorResponse
 //	@Router			/api/v1/users/{id} [put]
 func (h *Handler) UpdateUser(c *gin.Context) {
+	actor, ok := middleware.CurrentActor(c)
+	if !ok {
+		return
+	}
 	id, ok := middleware.PathID(c, "id")
 	if !ok {
 		return
@@ -142,7 +154,7 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.Update(c.Request.Context(), middleware.GetUserRolesFromContext(c), id, req)
+	user, err := h.service.Update(c.Request.Context(), actor, id, req)
 	if err != nil {
 		errs.RespondWithError(c, err)
 		return
@@ -169,6 +181,10 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 //	@Failure		500		{object}	errs.ErrorResponse
 //	@Router			/api/v1/users/{id}/set-password [post]
 func (h *Handler) SetPassword(c *gin.Context) {
+	actor, ok := middleware.CurrentActor(c)
+	if !ok {
+		return
+	}
 	id, ok := middleware.PathID(c, "id")
 	if !ok {
 		return
@@ -180,7 +196,7 @@ func (h *Handler) SetPassword(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.SetPassword(c.Request.Context(), middleware.GetUserRolesFromContext(c), id, req.Password); err != nil {
+	if err := h.service.SetPassword(c.Request.Context(), actor, id, req.Password); err != nil {
 		errs.RespondWithError(c, err)
 		return
 	}
@@ -210,12 +226,12 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	callerID, ok := middleware.CurrentUserID(c)
+	actor, ok := middleware.CurrentActor(c)
 	if !ok {
 		return
 	}
 
-	if err := h.service.Delete(c.Request.Context(), callerID, middleware.GetUserRolesFromContext(c), id); err != nil {
+	if err := h.service.Delete(c.Request.Context(), actor, id); err != nil {
 		errs.RespondWithError(c, err)
 		return
 	}

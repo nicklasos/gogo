@@ -867,6 +867,10 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -903,6 +907,10 @@ paths:
             $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "404":
@@ -947,6 +955,10 @@ paths:
             $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/app_internal_errs.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/app_internal_errs.ErrorResponse'
         "404":

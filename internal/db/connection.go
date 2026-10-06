@@ -7,10 +7,12 @@ import (
 
 	"app/config"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewConnection(cfg *config.Config) (*pgxpool.Pool, error) {
+// NewConnection opens the pool. A tracer, when given, sees every query (used for monitoring).
+func NewConnection(cfg *config.Config, tracers ...pgx.QueryTracer) (*pgxpool.Pool, error) {
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
@@ -21,6 +23,9 @@ func NewConnection(cfg *config.Config) (*pgxpool.Pool, error) {
 	}
 
 	configureConnectionPool(poolConfig)
+	if len(tracers) > 0 && tracers[0] != nil {
+		poolConfig.ConnConfig.Tracer = tracers[0]
+	}
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
 	if err != nil {

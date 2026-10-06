@@ -80,7 +80,7 @@ go test -v ./tests/unit -run TestAuthService_Register
 ### Test Helpers
 - `WithTransaction`: Database transaction wrapper
 - `CreateTestServer`: HTTP test server setup
-- `CreateTestUser`, `CreateTestExample`: Test data fixtures
+- `factory.User`, `factory.Example`, `factory.Upload` (`internal/factory`): test data with defaults and options
 - `GenerateTestJWT`: Signed JWT for authenticated requests
 
 ## Example Test Pattern
@@ -89,8 +89,8 @@ go test -v ./tests/unit -run TestAuthService_Register
 func TestExampleService_GetExample(t *testing.T) {
     helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
         // Setup: Create test data
-        user := helpers.CreateTestUser(t, ctx, tx)
-        example := helpers.CreateTestExample(t, ctx, tx, user.ID)
+        user := factory.User(t, tx)
+        example := factory.Example(t, tx, user.ID)
 
         // Test: Execute business logic
         service := example.NewExampleService(queries, nil)

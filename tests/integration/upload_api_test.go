@@ -1,14 +1,15 @@
 package integration
 
 import (
-	"app/internal/db"
-	"app/internal/uploads"
-	"app/tests/helpers"
 	"bytes"
 	"context"
 	"mime/multipart"
 	"net/http"
 	"testing"
+
+	"app/internal/db"
+	"app/internal/uploads"
+	"app/tests/helpers"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"

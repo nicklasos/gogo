@@ -1,6 +1,6 @@
 -- name: GetExampleByID :one
-SELECT * FROM examples 
-WHERE id = $1 AND user_id = $2 LIMIT 1;
+SELECT * FROM examples
+WHERE id = $1 LIMIT 1;
 
 -- name: CreateExample :one
 INSERT INTO examples (
@@ -13,15 +13,15 @@ RETURNING *;
 -- name: UpdateExample :one
 UPDATE examples
 SET
-    title = $3,
-    description = $4,
+    title = $2,
+    description = $3,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1 AND user_id = $2
+WHERE id = $1
 RETURNING *;
 
 -- name: DeleteExample :exec
 DELETE FROM examples
-WHERE id = $1 AND user_id = $2;
+WHERE id = $1;
 
 -- name: ListExamplesForUserPaginated :many
 SELECT * FROM examples

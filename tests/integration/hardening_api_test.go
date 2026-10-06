@@ -1,13 +1,6 @@
 package integration
 
 import (
-	"app/internal"
-	"app/internal/auth"
-	"app/internal/cache"
-	"app/internal/db"
-	"app/internal/errs"
-	"app/internal/health"
-	"app/tests/helpers"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -16,6 +9,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"app/internal"
+	"app/internal/auth"
+	"app/internal/cache"
+	"app/internal/db"
+	"app/internal/errs"
+	"app/internal/factory"
+	"app/internal/health"
+	"app/tests/helpers"
 
 	"app/config"
 
@@ -61,7 +63,7 @@ func TestAuthAPI_EmailsAreCaseInsensitive(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			helpers.CreateTestUserWithEmail(t, ctx, tx, "Legacy.User@example.com")
+			factory.User(t, tx, factory.WithEmail("Legacy.User@example.com"))
 
 			assert.Equal(t, http.StatusOK, loginStatus(server, "legacy.user@example.com", "password123"))
 			assert.Equal(t, http.StatusOK, loginStatus(server, "Legacy.User@example.com", "password123"))
@@ -70,7 +72,7 @@ func TestAuthAPI_EmailsAreCaseInsensitive(t *testing.T) {
 
 	t.Run("the database refuses two accounts that differ only by case", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			helpers.CreateTestUserWithEmail(t, ctx, tx, "twin@example.com")
+			factory.User(t, tx, factory.WithEmail("twin@example.com"))
 
 			_, err := tx.Exec(ctx, "INSERT INTO users (email, name, password) VALUES ('TWIN@example.com', 'Twin', 'x')")
 			require.Error(t, err)
@@ -83,7 +85,7 @@ func TestAuthAPI_EmailsAreCaseInsensitive(t *testing.T) {
 			server := helpers.CreateTestServer(t, ctx, tx, queries)
 			defer server.Close()
 
-			admin := helpers.CreateTestUserWithRoles(t, ctx, tx, "super-admin")
+			admin := factory.User(t, tx, factory.WithRoles("super-admin"))
 			token := helpers.GenerateTestJWT(admin.ID, admin.Email)
 
 			var created struct {
@@ -108,7 +110,7 @@ func TestAuthAPI_RefreshTokensAreStoredHashed(t *testing.T) {
 		server := helpers.CreateTestServer(t, ctx, tx, queries)
 		defer server.Close()
 
-		user := helpers.CreateTestUser(t, ctx, tx)
+		user := factory.User(t, tx)
 
 		var session auth.LoginDataResponse
 		resp := server.POST("/api/v1/auth/login", fmt.Sprintf(`{"email": %q, "password": "password123"}`, user.Email))
@@ -136,7 +138,7 @@ func TestAuth_TokenInQueryStringIsIgnored(t *testing.T) {
 		server := helpers.CreateTestServer(t, ctx, tx, queries)
 		defer server.Close()
 
-		user := helpers.CreateTestUser(t, ctx, tx)
+		user := factory.User(t, tx)
 		token := helpers.GenerateTestJWT(user.ID, user.Email)
 
 		assert.Equal(t, http.StatusUnauthorized, server.GET("/api/v1/auth/me?token="+token).StatusCode)

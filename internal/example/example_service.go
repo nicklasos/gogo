@@ -4,6 +4,7 @@ import (
 	"app/internal/cache"
 	"app/internal/db"
 	"app/internal/errs"
+	"app/internal/middleware"
 	"context"
 	"errors"
 	"fmt"
@@ -15,7 +16,10 @@ import (
 
 const listCacheTTL = 30 * time.Second
 
-var ErrExampleNotFound = errs.NewNotFoundError(errs.ErrKeyExampleNotFound, "Example not found")
+var (
+	ErrExampleNotFound  = errs.NewNotFoundError(errs.ErrKeyExampleNotFound, "Example not found")
+	ErrExampleForbidden = errs.NewForbiddenError(errs.ErrKeyForbidden, "You are not allowed to do this to this example")
+)
 
 // PaginatedExamplesResult is one page of a user's examples
 type PaginatedExamplesResult struct {
@@ -36,9 +40,9 @@ func NewExampleService(queries *db.Queries, c cache.Cache) *ExampleService {
 	}
 }
 
-func (s *ExampleService) CreateExample(ctx context.Context, userID int32, title, description string) (*db.Example, error) {
+func (s *ExampleService) CreateExample(ctx context.Context, actor middleware.Actor, title, description string) (*db.Example, error) {
 	example, err := s.queries.CreateExample(ctx, db.CreateExampleParams{
-		UserID:      userID,
+		UserID:      actor.ID,
 		Title:       title,
 		Description: pgtype.Text{String: description, Valid: description != ""},
 	})
@@ -46,25 +50,21 @@ func (s *ExampleService) CreateExample(ctx context.Context, userID int32, title,
 		return nil, errs.WrapDatabaseError(err)
 	}
 
-	s.invalidateList(ctx, userID)
+	s.invalidateList(ctx, example.UserID)
 	return &example, nil
 }
 
-func (s *ExampleService) GetExample(ctx context.Context, exampleID, userID int32) (*db.Example, error) {
-	example, err := s.queries.GetExampleByID(ctx, db.GetExampleByIDParams{
-		ID:     exampleID,
-		UserID: userID,
-	})
-	if err != nil {
-		return nil, notFoundOr(err)
+func (s *ExampleService) GetExample(ctx context.Context, actor middleware.Actor, exampleID int32) (*db.Example, error) {
+	return s.authorized(ctx, actor, exampleID, CanView)
+}
+
+func (s *ExampleService) UpdateExample(ctx context.Context, actor middleware.Actor, exampleID int32, title, description string) (*db.Example, error) {
+	if _, err := s.authorized(ctx, actor, exampleID, CanUpdate); err != nil {
+		return nil, err
 	}
-	return &example, nil
-}
 
-func (s *ExampleService) UpdateExample(ctx context.Context, exampleID, userID int32, title, description string) (*db.Example, error) {
 	example, err := s.queries.UpdateExample(ctx, db.UpdateExampleParams{
 		ID:          exampleID,
-		UserID:      userID,
 		Title:       title,
 		Description: pgtype.Text{String: description, Valid: description != ""},
 	})
@@ -72,21 +72,35 @@ func (s *ExampleService) UpdateExample(ctx context.Context, exampleID, userID in
 		return nil, notFoundOr(err)
 	}
 
-	s.invalidateList(ctx, userID)
+	s.invalidateList(ctx, example.UserID)
 	return &example, nil
 }
 
-func (s *ExampleService) DeleteExample(ctx context.Context, exampleID, userID int32) error {
-	if _, err := s.GetExample(ctx, exampleID, userID); err != nil {
+func (s *ExampleService) DeleteExample(ctx context.Context, actor middleware.Actor, exampleID int32) error {
+	example, err := s.authorized(ctx, actor, exampleID, CanDelete)
+	if err != nil {
 		return err
 	}
 
-	if err := s.queries.DeleteExample(ctx, db.DeleteExampleParams{ID: exampleID, UserID: userID}); err != nil {
+	if err := s.queries.DeleteExample(ctx, exampleID); err != nil {
 		return errs.WrapDatabaseError(err)
 	}
 
-	s.invalidateList(ctx, userID)
+	s.invalidateList(ctx, example.UserID)
 	return nil
+}
+
+// authorized loads an example and applies a policy to it: 404 when it does not exist,
+// 403 when it does and the actor may not do this.
+func (s *ExampleService) authorized(ctx context.Context, actor middleware.Actor, exampleID int32, allowed func(middleware.Actor, db.Example) bool) (*db.Example, error) {
+	example, err := s.queries.GetExampleByID(ctx, exampleID)
+	if err != nil {
+		return nil, notFoundOr(err)
+	}
+	if !allowed(actor, example) {
+		return nil, ErrExampleForbidden
+	}
+	return &example, nil
 }
 
 // ListExamplesPaginated returns one page of a user's examples, cached for a short time.

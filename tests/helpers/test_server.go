@@ -92,7 +92,7 @@ func CreateTestServer(t *testing.T, ctx context.Context, tx pgx.Tx, queries *db.
 		fn(testConfig)
 	}
 
-	router := server.NewEngine(testConfig, testLogger)
+	router := server.NewEngine(testConfig, testLogger, nil)
 	testMail := mail.NewMemorySender()
 
 	app := &internal.App{

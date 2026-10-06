@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"app/internal/db"
+	"app/internal/factory"
 	"app/internal/uploads"
 	"app/tests/helpers"
 
@@ -21,7 +22,7 @@ func TestUploadService_UploadFile(t *testing.T) {
 	t.Run("should upload file successfully", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user and temp directory
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			tempDir := t.TempDir()
 			config := uploads.DefaultUploadConfig(tempDir, "http://localhost:8181/api/files")
 			service := uploads.NewUploadService(queries, config)
@@ -53,7 +54,7 @@ func TestUploadService_UploadFile(t *testing.T) {
 	t.Run("should return error for invalid file type", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user and temp directory
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			tempDir := t.TempDir()
 			config := uploads.DefaultUploadConfig(tempDir, "http://localhost:8181/api/files")
 			service := uploads.NewUploadService(queries, config)
@@ -74,7 +75,7 @@ func TestUploadService_UploadFile(t *testing.T) {
 	t.Run("should return error for file too large", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user and temp directory
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			tempDir := t.TempDir()
 			config := uploads.DefaultUploadConfig(tempDir, "http://localhost:8181/api/files")
 			config.MaxFileSize = 10 // Very small limit
@@ -96,7 +97,7 @@ func TestUploadService_UploadFile(t *testing.T) {
 	t.Run("should return error for empty file", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user and temp directory
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			tempDir := t.TempDir()
 			config := uploads.DefaultUploadConfig(tempDir, "http://localhost:8181/api/files")
 			service := uploads.NewUploadService(queries, config)
@@ -119,8 +120,8 @@ func TestUploadService_GetUpload(t *testing.T) {
 	t.Run("should get upload successfully", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user and upload
-			user := helpers.CreateTestUser(t, ctx, tx)
-			testUpload := helpers.CreateTestUpload(t, ctx, tx, user.ID)
+			user := factory.User(t, tx)
+			testUpload := factory.Upload(t, tx, user.ID)
 
 			tempDir := t.TempDir()
 			config := uploads.DefaultUploadConfig(tempDir, "http://localhost:8181/api/files")
@@ -140,7 +141,7 @@ func TestUploadService_GetUpload(t *testing.T) {
 	t.Run("should return error when upload not found", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			tempDir := t.TempDir()
 			config := uploads.DefaultUploadConfig(tempDir, "http://localhost:8181/api/files")
 			service := uploads.NewUploadService(queries, config)
@@ -160,7 +161,7 @@ func TestUploadService_DeleteUpload(t *testing.T) {
 	t.Run("should delete upload successfully and remove file from disk", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user and temp directory
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			tempDir := t.TempDir()
 			config := uploads.DefaultUploadConfig(tempDir, "http://localhost:8181/api/files")
 			service := uploads.NewUploadService(queries, config)
@@ -197,7 +198,7 @@ func TestUploadService_DeleteUpload(t *testing.T) {
 	t.Run("should return error when upload not found", func(t *testing.T) {
 		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
 			// Setup: Create a user
-			user := helpers.CreateTestUser(t, ctx, tx)
+			user := factory.User(t, tx)
 			tempDir := t.TempDir()
 			config := uploads.DefaultUploadConfig(tempDir, "http://localhost:8181/api/files")
 			service := uploads.NewUploadService(queries, config)

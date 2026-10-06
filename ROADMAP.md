@@ -6,6 +6,7 @@ What is worth adding to the skeleton next, in priority order. Each item names th
 
 | Item | Why | Port from |
 |---|---|---|
+| Background jobs | Mail and other slow work run inside the request today; River (Postgres) fits the stack, with a jobs page in gopulse | — |
 | golangci-lint | CI runs `gofmt`, `go vet` and the tests; a linter config would catch more | — |
 | WebSocket authentication | Tokens are no longer accepted in the URL; a project with WebSockets needs a short-lived ticket endpoint instead | — |
 
@@ -20,14 +21,12 @@ What is worth adding to the skeleton next, in priority order. Each item names th
 | Constraint registry | Table-driven unique / foreign key constraint → error key, instead of string matching | `sytno/backend/internal/errs/postgres_fk.go` |
 | pgtype helpers | Less boilerplate converting nullable columns | `sytno/backend/internal/utils/pgtype.go` |
 | Mail templates, translations and queueing | The two auth emails are plain English, and `Send` blocks on SMTP | — |
-| Seeders | `cli seed` for sample data | — |
 | Savepoint-per-request in tests | A failed statement aborts the shared test transaction, so such a request must be last in a test | — |
 
 ## P3
 
 | Item | Why | Port from |
 |---|---|---|
-| `make:module` generator | Copy the example module with name substitution, once the module shape is stable | — |
 | Audit logs | Who changed what, with a matching modal in the front | `smartcity-backoffice-api/internal/audit_logs/` |
 | Client-errors endpoint | Collects front-end errors | `smartcity-backoffice-api/internal/client_errors/` |
 

@@ -54,31 +54,21 @@ func (q *Queries) CreateExample(ctx context.Context, arg CreateExampleParams) (E
 
 const deleteExample = `-- name: DeleteExample :exec
 DELETE FROM examples
-WHERE id = $1 AND user_id = $2
+WHERE id = $1
 `
 
-type DeleteExampleParams struct {
-	ID     int32 `db:"id" json:"id"`
-	UserID int32 `db:"user_id" json:"user_id"`
-}
-
-func (q *Queries) DeleteExample(ctx context.Context, arg DeleteExampleParams) error {
-	_, err := q.db.Exec(ctx, deleteExample, arg.ID, arg.UserID)
+func (q *Queries) DeleteExample(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, deleteExample, id)
 	return err
 }
 
 const getExampleByID = `-- name: GetExampleByID :one
-SELECT id, user_id, title, description, created_at, updated_at FROM examples 
-WHERE id = $1 AND user_id = $2 LIMIT 1
+SELECT id, user_id, title, description, created_at, updated_at FROM examples
+WHERE id = $1 LIMIT 1
 `
 
-type GetExampleByIDParams struct {
-	ID     int32 `db:"id" json:"id"`
-	UserID int32 `db:"user_id" json:"user_id"`
-}
-
-func (q *Queries) GetExampleByID(ctx context.Context, arg GetExampleByIDParams) (Example, error) {
-	row := q.db.QueryRow(ctx, getExampleByID, arg.ID, arg.UserID)
+func (q *Queries) GetExampleByID(ctx context.Context, id int32) (Example, error) {
+	row := q.db.QueryRow(ctx, getExampleByID, id)
 	var i Example
 	err := row.Scan(
 		&i.ID,
@@ -134,27 +124,21 @@ func (q *Queries) ListExamplesForUserPaginated(ctx context.Context, arg ListExam
 const updateExample = `-- name: UpdateExample :one
 UPDATE examples
 SET
-    title = $3,
-    description = $4,
+    title = $2,
+    description = $3,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1 AND user_id = $2
+WHERE id = $1
 RETURNING id, user_id, title, description, created_at, updated_at
 `
 
 type UpdateExampleParams struct {
 	ID          int32       `db:"id" json:"id"`
-	UserID      int32       `db:"user_id" json:"user_id"`
 	Title       string      `db:"title" json:"title"`
 	Description pgtype.Text `db:"description" json:"description"`
 }
 
 func (q *Queries) UpdateExample(ctx context.Context, arg UpdateExampleParams) (Example, error) {
-	row := q.db.QueryRow(ctx, updateExample,
-		arg.ID,
-		arg.UserID,
-		arg.Title,
-		arg.Description,
-	)
+	row := q.db.QueryRow(ctx, updateExample, arg.ID, arg.Title, arg.Description)
 	var i Example
 	err := row.Scan(
 		&i.ID,

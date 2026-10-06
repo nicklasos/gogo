@@ -37,6 +37,16 @@ It pairs with **[gogo-front](https://github.com/nicklasos/gogo-front)**, a React
 |---|---|
 | ![Swagger UI](docs/screenshots/swagger.png) | ![Admin UI](docs/screenshots/admin-ui.png) |
 
+A monitoring dashboard is built in, served by the API itself through **[gopulse](https://github.com/nicklasos/gopulse)**:
+
+| Requests and response times | SQL queries, by sqlc name |
+|---|---|
+| ![Monitoring overview](docs/screenshots/pulse-overview.png) | ![Query statistics](docs/screenshots/pulse-queries.png) |
+
+| Routes | Logs |
+|---|---|
+| ![Routes](docs/screenshots/pulse-routes.png) | ![Logs](docs/screenshots/pulse-logs.png) |
+
 ## Quick Start
 
 ### Prerequisites
@@ -58,8 +68,8 @@ cp .env.example .env
 make up
 make migrate-up
 
-# The first super admin
-make cli-create-user EMAIL=admin@example.com PASSWORD=password123
+# Accounts and sample data (admin@example.com / password123, and more)
+make seed
 
 # Run with hot reload
 make dev
@@ -84,6 +94,9 @@ Run the tests with `make test`; it migrates the test database first.
 - **Roles**: `super-admin`, `admin`, `user` with `RequireRole` middleware; roles are read from the database on every request
 - **User management**: super admins manage super admins and admins, admins manage users
 - **Mail**: SMTP service (`app.Mail`), logged instead of sent in debug mode, with an in-memory sender for tests
+- **Policies**: who may do what to a record, one small `policy.go` per module
+- **Factories and seed data**: `factory.User(t, tx, factory.WithRoles("admin"))` in tests, `make seed` for a development database
+- **Agent recipes**: step-by-step procedures in `docs/recipes/` for the common changes, also available as Claude Code skills
 - **Transactions**: `app.Tx.WithTx(ctx, func(q *db.Queries) error { ... })`
 - **Request ID**: `X-Request-ID` on every response and in every `*Context` log line
 - **Graceful shutdown** and env-driven CORS
@@ -93,6 +106,7 @@ Run the tests with `make test`; it migrates the test database first.
 - **Swagger**: Auto-generated API documentation
 - **Uploads**: content-checked file upload behind a `Storage` interface, paginated list, and file serving without directory listings
 - **Docker and CI**: `docker-compose.yml` for local services, a production `Dockerfile`, and a GitHub Actions workflow
+- **Monitoring dashboard**: requests per route, errors and panics, SQL statistics by sqlc query name, recent logs and server load at `/_pulse`
 - **Healthcheck**: `/health` checks PostgreSQL and Redis and answers 503 when either is down
 - **Scheduler**: Optional cron jobs (refresh-token cleanup)
 
@@ -124,6 +138,7 @@ gogo/
 │   ├── middleware/              # JWT, roles, CORS, request ID, pagination, recovery
 │   ├── cache/                   # Redis + MemoryCache
 │   ├── mail/                    # SMTP mail service + MemorySender
+│   ├── monitoring/              # gopulse dashboard wiring
 │   ├── errs/                    # Domain errors
 │   └── scheduler/               # Cron jobs
 ├── migrations/                  # Goose database migrations
@@ -209,6 +224,7 @@ PORT=8181
 APP_ENV=development
 APP_NAME=MyApp                 # also the Redis cache key prefix
 CORS_ALLOWED_ORIGINS=          # comma-separated; empty or * allows any origin
+PULSE_PASSWORD=                # set it to turn on the monitoring dashboard at /_pulse (user: PULSE_USERNAME, default admin)
 MAIL_HOST=                     # plus MAIL_PORT, MAIL_SCHEME, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS, MAIL_FROM_NAME
 LOG_LEVEL=info
 ENABLE_SCHEDULER=false
@@ -246,6 +262,16 @@ page, ok := middleware.Page(c)              // 400 when ?page / ?page_size are i
 - **Email verification**: registration and a changed email send `FRONTEND_URL/verify-email?token=...`. Users expose `email_verified`; accounts created by an admin or the CLI start verified. Nothing is blocked for unverified users by default, so add your own check where a project needs one.
 - **Rate limiting**: login allows 60 requests a minute per IP and 40 failures an hour per email and IP, then locks that pair out for 5 minutes, 15 minutes, 1 hour, 6 hours, 24 hours. Emailed-link endpoints allow 10 requests per 10 minutes per IP. A 429 carries `Retry-After` and `details.retry_after_seconds`. Behind a proxy, set `TRUSTED_PROXIES` or every client shares the proxy's IP.
 - **Local development**: with `APP_DEBUG=true` emails are written to the log, link included. Or run `make up` and point `MAIL_HOST` at Mailpit (http://localhost:8025).
+
+## Monitoring
+
+Set `PULSE_PASSWORD` and open `http://localhost:8181/_pulse` (basic auth, user `admin` unless `PULSE_USERNAME` says otherwise). Without a password the dashboard does not exist and nothing is recorded.
+
+- **What it shows**: requests per route with average, P95 and P99; slow requests; errors and panics grouped with their stacks; SQL statements grouped by sqlc query name, with slow and failed ones listed; recent log records; CPU, memory, disk and goroutines per instance.
+- **How it is wired**: one middleware, a tracer on the pgx pool and a wrapper around the log handler, all in `cmd/api/main.go` through `internal/monitoring`. Pass the request context to queries and use the `*Context` log methods so both are linked to their request.
+- **Storage**: Redis, under `gopulse:<APP_NAME>:`, so history survives deploys and several instances share one dashboard. Everything expires on its own (a week at most).
+- **Your own numbers**: `monitoring.Record(app.Pulse, "orders", "created", total)` records a custom metric, and `app.Pulse.AddPage(...)` adds a tab for it. See the [gopulse README](https://github.com/nicklasos/gopulse#custom-pages).
+- **In production**, keep `/_pulse` behind the password and, ideally, off the public internet.
 
 ## Mail
 
@@ -290,11 +316,14 @@ config := &uploads.UploadConfig{
 
 ## Adding New Modules
 
+Follow [docs/recipes/add-module.md](docs/recipes/add-module.md). In short:
+
 1. Create migration: `migrations/XXX_create_table.sql`
 2. Write SQL queries in `internal/db/queries/module.sql`
 3. Generate code: `make sqlc`
-4. Create module: `internal/module/{service,handler,routes,types}.go`
+4. Create module: `internal/module/{types,policy,service,handler,routes}.go`
 5. Add `module.RegisterRoutes(app)` to `internal/server/server.go` (used by the API and the test server)
+6. Add a factory in `internal/factory` and tests
 
 ## Docker
 
@@ -325,6 +354,6 @@ The project uses structured error handling with the `errs` package. See `docs/ER
 
 - **API Docs**: `/swagger/index.html` when running
 - **Error Handling**: See `docs/ERRORS.md` for error handling guide
-- **Architecture**: See `CLAUDE.md` for detailed patterns
+- **Architecture**: See `AGENTS.md` for detailed patterns
 - **Deployment**: See `DEPLOYMENT.md` for supervisord setup
 - **Roadmap**: See `ROADMAP.md` for what is worth adding next

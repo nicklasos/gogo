@@ -1,15 +1,18 @@
 package integration
 
 import (
-	"app/internal/auth"
-	"app/internal/db"
-	"app/internal/example"
-	"app/tests/helpers"
 	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 	"testing"
+
+	"app/internal/auth"
+	"app/internal/db"
+	"app/internal/errs"
+	"app/internal/example"
+	"app/internal/factory"
+	"app/tests/helpers"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
@@ -130,7 +133,7 @@ func TestExampleAPI_GetExample(t *testing.T) {
 
 			token := getAuthToken(t, server)
 			userID := getUserIDFromToken(t, ctx, tx, "test@example.com")
-			testExample := helpers.CreateTestExample(t, ctx, tx, userID)
+			testExample := factory.Example(t, tx, userID)
 
 			// Test: Get example
 			req := server.NewRequest("GET", "/api/v1/examples/"+strconv.Itoa(int(testExample.ID)), nil)
@@ -182,7 +185,7 @@ func TestExampleAPI_ListExamples(t *testing.T) {
 
 			// Create multiple examples
 			for i := 0; i < 5; i++ {
-				helpers.CreateTestExample(t, ctx, tx, userID)
+				factory.Example(t, tx, userID)
 			}
 
 			// Test: List examples
@@ -241,7 +244,7 @@ func TestExampleAPI_UpdateExample(t *testing.T) {
 
 			token := getAuthToken(t, server)
 			userID := getUserIDFromToken(t, ctx, tx, "test@example.com")
-			testExample := helpers.CreateTestExample(t, ctx, tx, userID)
+			testExample := factory.Example(t, tx, userID)
 
 			// Test: Update example
 			reqBody := `{
@@ -303,7 +306,7 @@ func TestExampleAPI_DeleteExample(t *testing.T) {
 
 			token := getAuthToken(t, server)
 			userID := getUserIDFromToken(t, ctx, tx, "test@example.com")
-			testExample := helpers.CreateTestExample(t, ctx, tx, userID)
+			testExample := factory.Example(t, tx, userID)
 
 			// Test: Delete example
 			req := server.NewRequest("DELETE", "/api/v1/examples/"+strconv.Itoa(int(testExample.ID)), nil)
@@ -345,7 +348,7 @@ func TestExampleAPI_ListCacheIsInvalidatedForEveryPageSize(t *testing.T) {
 		server := helpers.CreateTestServer(t, ctx, tx, queries)
 		defer server.Close()
 
-		user := helpers.CreateTestUser(t, ctx, tx)
+		user := factory.User(t, tx)
 		token := helpers.GenerateTestJWT(user.ID, user.Email)
 		titles := func(path string) []string {
 			var page example.PaginatedExamplesResponse
@@ -378,5 +381,44 @@ func TestExampleAPI_ListCacheIsInvalidatedForEveryPageSize(t *testing.T) {
 		for _, path := range paths {
 			assert.Empty(t, titles(path), path)
 		}
+	})
+}
+
+func TestExampleAPI_Policy(t *testing.T) {
+	helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
+		server := helpers.CreateTestServer(t, ctx, tx, queries)
+		defer server.Close()
+
+		owner := factory.User(t, tx)
+		stranger := factory.User(t, tx)
+		admin := factory.User(t, tx, factory.WithRoles("admin"))
+		record := factory.Example(t, tx, owner.ID, factory.WithTitle("Private notes"))
+
+		token := func(user *db.User) string { return helpers.GenerateTestJWT(user.ID, user.Email) }
+		path := fmt.Sprintf("/api/v1/examples/%d", record.ID)
+		body := `{"title": "Changed", "description": ""}`
+
+		assert.Equal(t, http.StatusOK, server.GETAuth(path, token(owner)).StatusCode)
+		assert.Equal(t, http.StatusOK, server.GETAuth(path, token(admin)).StatusCode, "an admin may look")
+
+		for _, attempt := range []*helpers.TestResponse{
+			server.GETAuth(path, token(stranger)),
+			server.PUTAuth(path, body, token(stranger)),
+			server.DELETEAuth(path, token(stranger)),
+			server.PUTAuth(path, body, token(admin)),
+		} {
+			assertErrorKey(t, attempt, http.StatusForbidden, errs.ErrKeyForbidden)
+		}
+
+		unchanged, err := queries.GetExampleByID(ctx, record.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "Private notes", unchanged.Title)
+
+		var list example.PaginatedExamplesResponse
+		require.NoError(t, server.GETAuth("/api/v1/examples", token(admin)).JSON(&list))
+		assert.Empty(t, list.Data, "the list is always the caller's own examples")
+
+		assert.Equal(t, http.StatusOK, server.DELETEAuth(path, token(admin)).StatusCode, "an admin may remove")
+		assertErrorKey(t, server.GETAuth(path, token(owner)), http.StatusNotFound, errs.ErrKeyExampleNotFound)
 	})
 }

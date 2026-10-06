@@ -1,15 +1,17 @@
 package integration
 
 import (
-	"app/internal/db"
-	"app/internal/errs"
-	"app/internal/middleware"
-	"app/internal/users"
-	"app/tests/helpers"
 	"context"
 	"fmt"
 	"net/http"
 	"testing"
+
+	"app/internal/db"
+	"app/internal/errs"
+	"app/internal/factory"
+	"app/internal/middleware"
+	"app/internal/users"
+	"app/tests/helpers"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +24,7 @@ type usersTestActor struct {
 }
 
 func newUsersTestActor(t *testing.T, ctx context.Context, tx pgx.Tx, role string) usersTestActor {
-	user := helpers.CreateTestUserWithRoles(t, ctx, tx, role)
+	user := factory.User(t, tx, factory.WithRoles(role))
 	return usersTestActor{user: user, token: helpers.GenerateTestJWT(user.ID, user.Email)}
 }
 
@@ -45,9 +47,9 @@ func TestUsersAPI_List(t *testing.T) {
 			defer server.Close()
 
 			superAdmin := newUsersTestActor(t, ctx, tx, middleware.RoleSuperAdmin)
-			helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleAdmin)
-			helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleAdmin)
-			helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleAdmin)
+			factory.User(t, tx, factory.WithRoles(middleware.RoleAdmin))
+			factory.User(t, tx, factory.WithRoles(middleware.RoleAdmin))
+			factory.User(t, tx, factory.WithRoles(middleware.RoleAdmin))
 
 			resp := server.GETAuth("/api/v1/users?role=admin&page=1&page_size=2", superAdmin.token)
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -72,7 +74,7 @@ func TestUsersAPI_List(t *testing.T) {
 			defer server.Close()
 
 			admin := newUsersTestActor(t, ctx, tx, middleware.RoleAdmin)
-			helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleUser)
+			factory.User(t, tx, factory.WithRoles(middleware.RoleUser))
 
 			resp := server.GETAuth("/api/v1/users", admin.token)
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -189,7 +191,7 @@ func TestUsersAPI_Update(t *testing.T) {
 			defer server.Close()
 
 			superAdmin := newUsersTestActor(t, ctx, tx, middleware.RoleSuperAdmin)
-			target := helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleAdmin)
+			target := factory.User(t, tx, factory.WithRoles(middleware.RoleAdmin))
 
 			resp := server.PUTAuth(fmt.Sprintf("/api/v1/users/%d", target.ID), `{"email": "renamed@example.com", "name": "Renamed"}`, superAdmin.token)
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -208,10 +210,10 @@ func TestUsersAPI_Update(t *testing.T) {
 			defer server.Close()
 
 			admin := newUsersTestActor(t, ctx, tx, middleware.RoleAdmin)
-			plain := helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleUser)
-			otherAdmin := helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleAdmin)
-			superAdmin := helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleSuperAdmin)
-			mixed := helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleUser, middleware.RoleAdmin)
+			plain := factory.User(t, tx, factory.WithRoles(middleware.RoleUser))
+			otherAdmin := factory.User(t, tx, factory.WithRoles(middleware.RoleAdmin))
+			superAdmin := factory.User(t, tx, factory.WithRoles(middleware.RoleSuperAdmin))
+			mixed := factory.User(t, tx, factory.WithRoles(middleware.RoleUser, middleware.RoleAdmin))
 
 			body := `{"email": "changed@example.com", "name": "Changed"}`
 
@@ -244,7 +246,7 @@ func TestUsersAPI_SetPassword(t *testing.T) {
 			defer server.Close()
 
 			superAdmin := newUsersTestActor(t, ctx, tx, middleware.RoleSuperAdmin)
-			target := helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleAdmin)
+			target := factory.User(t, tx, factory.WithRoles(middleware.RoleAdmin))
 
 			login := func(password string) *helpers.TestResponse {
 				return server.POST("/api/v1/auth/login", fmt.Sprintf(`{"email": %q, "password": %q}`, target.Email, password))
@@ -275,7 +277,7 @@ func TestUsersAPI_SetPassword(t *testing.T) {
 			defer server.Close()
 
 			admin := newUsersTestActor(t, ctx, tx, middleware.RoleAdmin)
-			target := helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleSuperAdmin)
+			target := factory.User(t, tx, factory.WithRoles(middleware.RoleSuperAdmin))
 
 			resp := server.POSTAuth(fmt.Sprintf("/api/v1/users/%d/set-password", target.ID), `{"password": "new-password-1"}`, admin.token)
 			assertErrorKey(t, resp, http.StatusForbidden, errs.ErrKeyUsersForbiddenRole)
@@ -290,7 +292,7 @@ func TestUsersAPI_Delete(t *testing.T) {
 			defer server.Close()
 
 			superAdmin := newUsersTestActor(t, ctx, tx, middleware.RoleSuperAdmin)
-			target := helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleSuperAdmin)
+			target := factory.User(t, tx, factory.WithRoles(middleware.RoleSuperAdmin))
 
 			assert.Equal(t, http.StatusOK, server.DELETEAuth(fmt.Sprintf("/api/v1/users/%d", target.ID), superAdmin.token).StatusCode)
 			_, err := queries.GetUserByID(ctx, target.ID)
@@ -307,8 +309,8 @@ func TestUsersAPI_Delete(t *testing.T) {
 			defer server.Close()
 
 			admin := newUsersTestActor(t, ctx, tx, middleware.RoleAdmin)
-			plain := helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleUser)
-			otherAdmin := helpers.CreateTestUserWithRoles(t, ctx, tx, middleware.RoleAdmin)
+			plain := factory.User(t, tx, factory.WithRoles(middleware.RoleUser))
+			otherAdmin := factory.User(t, tx, factory.WithRoles(middleware.RoleAdmin))
 
 			assert.Equal(t, http.StatusOK, server.DELETEAuth(fmt.Sprintf("/api/v1/users/%d", plain.ID), admin.token).StatusCode)
 

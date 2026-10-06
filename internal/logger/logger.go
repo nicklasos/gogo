@@ -20,6 +20,8 @@ type Config struct {
 	Output    string // file path, "stdout", "stderr", or "both"
 	AddSource bool   // add source code position
 	RequestID bool   // add the request ID from the context to every record
+	// Wrap, when set, decorates the output handler, for example to also feed a monitoring dashboard.
+	Wrap func(slog.Handler) slog.Handler
 }
 
 // New creates a new structured logger
@@ -75,6 +77,9 @@ func New(cfg Config) (*Logger, error) {
 		handler = slog.NewTextHandler(writer, opts)
 	}
 
+	if cfg.Wrap != nil {
+		handler = cfg.Wrap(handler)
+	}
 	if cfg.RequestID {
 		handler = contextHandler{handler}
 	}
