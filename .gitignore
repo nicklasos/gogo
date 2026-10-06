@@ -41,7 +41,7 @@ logs/*
 tmp/
 
 # Local file storage (UPLOAD_FOLDER)
-uploads/
+/uploads/
 
 # Database files (if using SQLite)
 *.db
