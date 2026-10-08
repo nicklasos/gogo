@@ -1,3 +1,15 @@
+# Words after `cli` are the console command. Flags go after `--`:
+#   make cli migrate up
+#   make cli -- create-user --email admin@example.com --password password123
+ifeq ($(firstword $(MAKECMDGOALS)),cli)
+  CLI_ARGS ?= $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  $(foreach arg,$(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS)),$(eval $(arg):;@:))
+
+.PHONY: cli
+cli:
+	go run ./cmd/cli $(CLI_ARGS)
+else
+
 run:
 	go run ./cmd/api
 
@@ -237,6 +249,7 @@ help:
 	@echo "    sqlc-install        Install sqlc CLI"
 	@echo "    schema-dump         Dump schema to internal/db/schema.sql"
 	@echo "    seed                Accounts and sample data for an empty development database"
+	@echo "    cli                 Run a console command (make cli migrate up)"
 	@echo "    cli-create-user     Create a user (EMAIL=, PASSWORD=, NAME=, ROLE=)"
 	@echo "    cli-mail            Send a test email (TO=)"
 	@echo ""
@@ -256,3 +269,5 @@ help:
 	@echo "    help                Show this help"
 
 .PHONY: up down docker-build seed run dev build build-cron build-cli run-cron run-cron-test-db run-test-db sqlc sqlc-install schema-dump swagger test test-unit test-integration test-verbose test-coverage test-db-setup test-db-reset test-with-db test-migrate-up test-migrate-down test-migrate-status fmt tidy clean air-install migrate-up migrate-down migrate-status migrate-reset migrate-create migrate-install cli-migrate-up cli-migrate-down cli-migrate-status cli-migrate-create cli-migrate-test-up cli-migrate-test-down cli-migrate-test-status cli-test cli-test-db cli-create-user cli-mail cli-help supervisor-restart supervisor-status supervisor-stop supervisor-start supervisor-logs supervisor-error-logs help
+
+endif

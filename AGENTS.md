@@ -208,6 +208,7 @@ make run-test-db      # Start against TEST_DATABASE_URL
 make build            # Build binary
 make test             # Run all tests (auto-migrates test DB)
 make seed             # Accounts and sample data for an empty development database
+make cli migrate up   # Any console command; flags go after -- (make cli -- create-user --email a@b.c --password secret123)
 make cli-create-user EMAIL=a@b.c PASSWORD=secret123   # Create a user (default role super-admin)
 make migrate-up       # Apply migrations
 make sqlc             # Generate sqlc code

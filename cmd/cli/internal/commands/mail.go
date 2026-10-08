@@ -20,7 +20,7 @@ func RunMail(app *internal.CLIApp, args []string) {
 		body    = fs.String("body", "Hello, this is a test email from "+app.Config.AppName+".", "Plain-text body")
 	)
 	fs.Usage = func() {
-		fmt.Println("Usage: go run ./cmd/cli mail [options]")
+		fmt.Println("Usage: make cli -- mail [options]")
 		fmt.Println()
 		fmt.Println("Send a test email through the configured SMTP server.")
 		fmt.Println("Requires MAIL_* env vars; see .env.example.")
@@ -30,8 +30,8 @@ func RunMail(app *internal.CLIApp, args []string) {
 		fs.PrintDefaults()
 		fmt.Println()
 		fmt.Println("Examples:")
-		fmt.Println(`  go run ./cmd/cli mail -to you@example.com`)
-		fmt.Println(`  go run ./cmd/cli mail -to you@example.com -subject "Hello" -body "It works"`)
+		fmt.Println(`  make cli -- mail -to you@example.com`)
+		fmt.Println(`  make cli -- mail -to you@example.com -subject "Hello" -body "It works"`)
 	}
 	fs.Parse(args)
 

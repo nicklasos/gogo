@@ -25,7 +25,7 @@ func RunCreateUser(app *internal.CLIApp, args []string) {
 	password := fs.String("password", "", "User password, min 8 characters (required)")
 	role := fs.String("role", middleware.RoleSuperAdmin, "User role: "+strings.Join(middleware.Roles, ", "))
 	fs.Usage = func() {
-		fmt.Println("Usage: go run ./cmd/cli create-user --email EMAIL --password PASSWORD [--name NAME] [--role ROLE]")
+		fmt.Println("Usage: make cli -- create-user --email EMAIL --password PASSWORD [--name NAME] [--role ROLE]")
 		fmt.Println()
 		fmt.Println("Create a user. Default role is super-admin.")
 		fmt.Println()
@@ -33,8 +33,8 @@ func RunCreateUser(app *internal.CLIApp, args []string) {
 		fs.PrintDefaults()
 		fmt.Println()
 		fmt.Println("Examples:")
-		fmt.Println("  go run ./cmd/cli create-user --email admin@example.com --password password123")
-		fmt.Println("  go run ./cmd/cli create-user --email admin@example.com --name Admin --password password123 --role admin")
+		fmt.Println("  make cli -- create-user --email admin@example.com --password password123")
+		fmt.Println("  make cli -- create-user --email admin@example.com --name Admin --password password123 --role admin")
 	}
 
 	if err := fs.Parse(args); err != nil {

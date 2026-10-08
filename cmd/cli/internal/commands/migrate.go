@@ -20,7 +20,7 @@ const (
 func RunMigrate(app *internal.CLIApp, args []string) {
 	fs := flag.NewFlagSet("migrate", flag.ExitOnError)
 	fs.Usage = func() {
-		fmt.Println("Usage: go run ./cmd/cli migrate [OPTIONS] COMMAND")
+		fmt.Println("Usage: make cli migrate [OPTIONS] COMMAND")
 		fmt.Println()
 		fmt.Println("Run database migrations")
 		fmt.Println()
@@ -36,10 +36,10 @@ func RunMigrate(app *internal.CLIApp, args []string) {
 		fs.PrintDefaults()
 		fmt.Println()
 		fmt.Println("Examples:")
-		fmt.Println("  go run ./cmd/cli migrate up")
-		fmt.Println("  go run ./cmd/cli migrate status")
-		fmt.Println("  go run ./cmd/cli migrate create add_users_table")
-		fmt.Println("  go run ./cmd/cli --test migrate up  # Use test database")
+		fmt.Println("  make cli migrate up")
+		fmt.Println("  make cli migrate status")
+		fmt.Println("  make cli migrate create add_users_table")
+		fmt.Println("  make cli -- --test migrate up  # Use test database")
 	}
 
 	fs.Parse(args)
@@ -86,7 +86,7 @@ func RunMigrate(app *internal.CLIApp, args []string) {
 	case "create":
 		if fs.NArg() < 2 {
 			fmt.Println("Error: migration name is required")
-			fmt.Println("Usage: go run ./cmd/cli migrate create NAME")
+			fmt.Println("Usage: make cli migrate create NAME")
 			return
 		}
 		name := fs.Arg(1)

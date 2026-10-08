@@ -43,5 +43,5 @@
 ## Check
 
 - `go build ./...` is clean and `make test` passes.
-- `go run ./cmd/cli --test migrate status` shows the new migration applied.
+- `make cli -- --test migrate status` shows the new migration applied.
 - The `Down` section really undoes the `Up` section.

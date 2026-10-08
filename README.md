@@ -288,7 +288,7 @@ err := s.mail.Send(ctx, mail.Message{
 
 - Configure SMTP with the `MAIL_*` variables. `MAIL_SCHEME` is `smtp` (STARTTLS, default), `smtps` (implicit TLS) or `none` (plain, for local catchers such as Mailpit).
 - With `APP_DEBUG=true`, `Send` only logs the recipient and subject. Nothing leaves the machine.
-- `make cli-mail TO=you@example.com` sends a real test email, even in debug mode.
+- `make cli -- mail -to you@example.com` sends a real test email, even in debug mode. `make cli-mail TO=you@example.com` is the same command.
 - In tests, `CreateTestServer` wires a `mail.MemorySender`; assert on `server.Mail.Sent()`.
 
 ## Uploads Module
