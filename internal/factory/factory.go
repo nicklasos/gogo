@@ -2,10 +2,12 @@
 // seeding a development database. Every factory takes options for the fields a caller
 // cares about and fills in the rest:
 //
-//	user := factory.User(t, tx)
-//	admin := factory.User(t, tx, factory.WithRoles("admin"), factory.WithEmail("boss@example.com"))
-//	example := factory.Example(t, tx, user.ID, factory.WithTitle("Release notes"))
+//	create := factory.New(t, tx)
+//	user := create.User()
+//	admin := create.User(factory.WithRoles("admin"), factory.WithEmail("boss@example.com"))
+//	example := create.Example(user.ID, factory.WithTitle("Release notes"))
 //
+// In a test the factory is already there as app.Create (see tests/testkit).
 // A failure stops the caller through TB, so there is no error to check.
 package factory
 
@@ -15,7 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"app/internal/db"
 )
 
 // DefaultPassword is the password of every user a factory creates, unless WithPassword is used.
@@ -27,9 +29,15 @@ type TB interface {
 	Fatalf(format string, args ...any)
 }
 
-// DB is satisfied by a transaction (tests) and by a connection pool (seeding).
-type DB interface {
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+// Factory creates records on one connection and reports failures to one TB.
+type Factory struct {
+	t       TB
+	queries *db.Queries
+}
+
+// New takes a transaction (tests) or a connection pool (seeding).
+func New(t TB, conn db.DBTX) *Factory {
+	return &Factory{t: t, queries: db.New(conn)}
 }
 
 var sequence atomic.Int64

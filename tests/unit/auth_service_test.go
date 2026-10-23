@@ -1,298 +1,231 @@
 package unit
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"app/internal/auth"
-	"app/internal/db"
-	"app/internal/factory"
-	"app/internal/mail"
-	"app/tests/helpers"
+	"app/tests/testkit"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func newAuthService(app *testkit.App) *auth.AuthService {
+	return auth.NewAuthService(app.Queries, app.TxRunner, app.Mail, app.Logger, auth.Options{JWTSecret: []byte(app.Config.JWTSecret)})
+}
+
 func TestAuthService_Register(t *testing.T) {
 	t.Run("should register new user successfully", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Create auth service
-			jwtSecret := []byte("test-secret-key")
-			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
+		app := testkit.New(t)
+		service := newAuthService(app)
 
-			// Test: Register user
-			req := auth.RegisterRequest{
-				Email:    "newuser@example.com",
-				Name:     "New User",
-				Password: "password123",
-			}
+		req := auth.RegisterRequest{
+			Email:    "newuser@example.com",
+			Name:     "New User",
+			Password: "password123",
+		}
 
-			tokenPair, user, err := service.Register(ctx, req)
+		tokenPair, user, err := service.Register(app.Ctx, req)
 
-			// Assert: Verify result
-			require.NoError(t, err)
-			assert.NotNil(t, tokenPair)
-			assert.NotNil(t, user)
-			assert.NotEmpty(t, tokenPair.AccessToken)
-			assert.NotEmpty(t, tokenPair.RefreshToken)
-			assert.Equal(t, req.Email, user.Email)
-			assert.Equal(t, req.Name, user.Name)
-			assert.True(t, user.ID > 0)
-		})
+		require.NoError(t, err)
+		assert.NotNil(t, tokenPair)
+		assert.NotNil(t, user)
+		assert.NotEmpty(t, tokenPair.AccessToken)
+		assert.NotEmpty(t, tokenPair.RefreshToken)
+		assert.Equal(t, req.Email, user.Email)
+		assert.Equal(t, req.Name, user.Name)
+		assert.True(t, user.ID > 0)
 	})
 
 	t.Run("should return error when user already exists", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Create existing user
-			user := factory.User(t, tx)
+		app := testkit.New(t)
+		user := app.Create.User()
 
-			jwtSecret := []byte("test-secret-key")
-			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
+		service := newAuthService(app)
 
-			// Test: Try to register with same email
-			req := auth.RegisterRequest{
-				Email:    user.Email,
-				Name:     "Another User",
-				Password: "password123",
-			}
+		req := auth.RegisterRequest{
+			Email:    user.Email,
+			Name:     "Another User",
+			Password: "password123",
+		}
 
-			tokenPair, resultUser, err := service.Register(ctx, req)
+		tokenPair, resultUser, err := service.Register(app.Ctx, req)
 
-			// Assert: Should return error
-			assert.Error(t, err)
-			assert.Equal(t, auth.ErrUserAlreadyExists, err)
-			assert.Nil(t, tokenPair)
-			assert.Nil(t, resultUser)
-		})
+		assert.Error(t, err)
+		assert.Equal(t, auth.ErrUserAlreadyExists, err)
+		assert.Nil(t, tokenPair)
+		assert.Nil(t, resultUser)
 	})
 }
 
 func TestAuthService_Login(t *testing.T) {
 	t.Run("should login successfully with valid credentials", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Register a user first
-			jwtSecret := []byte("test-secret-key")
-			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
+		app := testkit.New(t)
+		service := newAuthService(app)
 
-			registerReq := auth.RegisterRequest{
-				Email:    "user@example.com",
-				Name:     "Test User",
-				Password: "password123",
-			}
+		registerReq := auth.RegisterRequest{
+			Email:    "user@example.com",
+			Name:     "Test User",
+			Password: "password123",
+		}
 
-			_, registeredUser, err := service.Register(ctx, registerReq)
-			require.NoError(t, err)
+		_, registeredUser, err := service.Register(app.Ctx, registerReq)
+		require.NoError(t, err)
 
-			// Test: Login with correct credentials
-			loginReq := auth.LoginRequest{
-				Email:    "user@example.com",
-				Password: "password123",
-			}
+		loginReq := auth.LoginRequest{
+			Email:    "user@example.com",
+			Password: "password123",
+		}
 
-			tokenPair, user, err := service.Login(ctx, loginReq)
+		tokenPair, user, err := service.Login(app.Ctx, loginReq)
 
-			// Assert: Verify result
-			require.NoError(t, err)
-			assert.NotNil(t, tokenPair)
-			assert.NotNil(t, user)
-			assert.NotEmpty(t, tokenPair.AccessToken)
-			assert.NotEmpty(t, tokenPair.RefreshToken)
-			assert.Equal(t, registeredUser.ID, user.ID)
-			assert.Equal(t, registeredUser.Email, user.Email)
-		})
+		require.NoError(t, err)
+		assert.NotNil(t, tokenPair)
+		assert.NotNil(t, user)
+		assert.NotEmpty(t, tokenPair.AccessToken)
+		assert.NotEmpty(t, tokenPair.RefreshToken)
+		assert.Equal(t, registeredUser.ID, user.ID)
+		assert.Equal(t, registeredUser.Email, user.Email)
 	})
 
 	t.Run("should return error with invalid email", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Create auth service
-			jwtSecret := []byte("test-secret-key")
-			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
+		app := testkit.New(t)
+		service := newAuthService(app)
 
-			// Test: Login with non-existent email
-			loginReq := auth.LoginRequest{
-				Email:    "nonexistent@example.com",
-				Password: "password123",
-			}
+		loginReq := auth.LoginRequest{
+			Email:    "nonexistent@example.com",
+			Password: "password123",
+		}
 
-			tokenPair, user, err := service.Login(ctx, loginReq)
+		tokenPair, user, err := service.Login(app.Ctx, loginReq)
 
-			// Assert: Should return error
-			assert.Error(t, err)
-			assert.Equal(t, auth.ErrInvalidCredentials, err)
-			assert.Nil(t, tokenPair)
-			assert.Nil(t, user)
-		})
+		assert.Error(t, err)
+		assert.Equal(t, auth.ErrInvalidCredentials, err)
+		assert.Nil(t, tokenPair)
+		assert.Nil(t, user)
 	})
 
 	t.Run("should return error with invalid password", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Register a user first
-			jwtSecret := []byte("test-secret-key")
-			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
+		app := testkit.New(t)
+		service := newAuthService(app)
 
-			registerReq := auth.RegisterRequest{
-				Email:    "user@example.com",
-				Name:     "Test User",
-				Password: "password123",
-			}
+		registerReq := auth.RegisterRequest{
+			Email:    "user@example.com",
+			Name:     "Test User",
+			Password: "password123",
+		}
 
-			_, _, err := service.Register(ctx, registerReq)
-			require.NoError(t, err)
+		_, _, err := service.Register(app.Ctx, registerReq)
+		require.NoError(t, err)
 
-			// Test: Login with wrong password
-			loginReq := auth.LoginRequest{
-				Email:    "user@example.com",
-				Password: "wrongpassword",
-			}
+		loginReq := auth.LoginRequest{
+			Email:    "user@example.com",
+			Password: "wrongpassword",
+		}
 
-			tokenPair, user, err := service.Login(ctx, loginReq)
+		tokenPair, user, err := service.Login(app.Ctx, loginReq)
 
-			// Assert: Should return error
-			assert.Error(t, err)
-			assert.Equal(t, auth.ErrInvalidCredentials, err)
-			assert.Nil(t, tokenPair)
-			assert.Nil(t, user)
-		})
+		assert.Error(t, err)
+		assert.Equal(t, auth.ErrInvalidCredentials, err)
+		assert.Nil(t, tokenPair)
+		assert.Nil(t, user)
 	})
 }
 
 func TestAuthService_RefreshToken(t *testing.T) {
 	t.Run("should refresh token successfully", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Register a user and get tokens
-			jwtSecret := []byte("test-secret-key")
-			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
+		app := testkit.New(t)
+		service := newAuthService(app)
 
-			registerReq := auth.RegisterRequest{
-				Email:    "user@example.com",
-				Name:     "Test User",
-				Password: "password123",
-			}
+		registerReq := auth.RegisterRequest{
+			Email:    "user@example.com",
+			Name:     "Test User",
+			Password: "password123",
+		}
 
-			tokenPair, _, err := service.Register(ctx, registerReq)
-			require.NoError(t, err)
+		tokenPair, _, err := service.Register(app.Ctx, registerReq)
+		require.NoError(t, err)
 
-			// Test: Refresh token
-			// Add small delay to ensure different timestamps
-			time.Sleep(100 * time.Millisecond)
-			newTokenPair, err := service.RefreshToken(ctx, tokenPair.RefreshToken)
+		// Add small delay to ensure different timestamps
+		time.Sleep(100 * time.Millisecond)
+		newTokenPair, err := service.RefreshToken(app.Ctx, tokenPair.RefreshToken)
 
-			// Assert: Verify result
-			require.NoError(t, err)
-			assert.NotNil(t, newTokenPair)
-			assert.NotEmpty(t, newTokenPair.AccessToken)
-			assert.NotEmpty(t, newTokenPair.RefreshToken)
-			assert.NotEqual(t, tokenPair.AccessToken, newTokenPair.AccessToken, "New access token should be different from old one")
-		})
+		require.NoError(t, err)
+		assert.NotNil(t, newTokenPair)
+		assert.NotEmpty(t, newTokenPair.AccessToken)
+		assert.NotEmpty(t, newTokenPair.RefreshToken)
+		assert.NotEqual(t, tokenPair.AccessToken, newTokenPair.AccessToken, "New access token should be different from old one")
 	})
 
 	t.Run("should return error with invalid refresh token", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Create auth service
-			jwtSecret := []byte("test-secret-key")
-			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
+		app := testkit.New(t)
+		service := newAuthService(app)
 
-			// Test: Refresh with invalid token
-			tokenPair, err := service.RefreshToken(ctx, "invalid-token")
+		tokenPair, err := service.RefreshToken(app.Ctx, "invalid-token")
 
-			// Assert: Should return error
-			assert.Error(t, err)
-			assert.Equal(t, auth.ErrInvalidToken, err)
-			assert.Nil(t, tokenPair)
-		})
+		assert.Error(t, err)
+		assert.Equal(t, auth.ErrInvalidToken, err)
+		assert.Nil(t, tokenPair)
 	})
 }
 
 func TestAuthService_VerifyJWT(t *testing.T) {
 	t.Run("should verify valid JWT token", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Register a user and get token
-			jwtSecret := []byte("test-secret-key")
-			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
+		app := testkit.New(t)
+		service := newAuthService(app)
 
-			registerReq := auth.RegisterRequest{
-				Email:    "user@example.com",
-				Name:     "Test User",
-				Password: "password123",
-			}
+		registerReq := auth.RegisterRequest{
+			Email:    "user@example.com",
+			Name:     "Test User",
+			Password: "password123",
+		}
 
-			tokenPair, _, err := service.Register(ctx, registerReq)
-			require.NoError(t, err)
+		tokenPair, _, err := service.Register(app.Ctx, registerReq)
+		require.NoError(t, err)
 
-			// Test: Verify token
-			token, err := service.VerifyJWT(tokenPair.AccessToken)
+		token, err := service.VerifyJWT(tokenPair.AccessToken)
 
-			// Assert: Verify result
-			require.NoError(t, err)
-			assert.NotNil(t, token)
-			assert.True(t, token.Valid)
-		})
+		require.NoError(t, err)
+		assert.NotNil(t, token)
+		assert.True(t, token.Valid)
 	})
 
 	t.Run("should return error with invalid JWT token", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Create auth service
-			jwtSecret := []byte("test-secret-key")
-			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
+		app := testkit.New(t)
+		service := newAuthService(app)
 
-			// Test: Verify invalid token
-			token, err := service.VerifyJWT("invalid-token")
+		token, err := service.VerifyJWT("invalid-token")
 
-			// Assert: Should return error
-			assert.Error(t, err)
-			assert.Equal(t, auth.ErrInvalidToken, err)
-			assert.Nil(t, token)
-		})
+		assert.Error(t, err)
+		assert.Equal(t, auth.ErrInvalidToken, err)
+		assert.Nil(t, token)
 	})
 }
 
 func TestAuthService_GetUserFromContext(t *testing.T) {
 	t.Run("should get user by ID successfully", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Create a user
-			user := factory.User(t, tx)
+		app := testkit.New(t)
+		user := app.Create.User()
 
-			jwtSecret := []byte("test-secret-key")
-			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
+		service := newAuthService(app)
 
-			// Test: Get user by ID
-			resultUser, err := service.GetUserFromContext(ctx, user.ID)
+		resultUser, err := service.GetUserFromContext(app.Ctx, user.ID)
 
-			// Assert: Verify result
-			require.NoError(t, err)
-			assert.NotNil(t, resultUser)
-			assert.Equal(t, user.ID, resultUser.ID)
-			assert.Equal(t, user.Email, resultUser.Email)
-		})
+		require.NoError(t, err)
+		assert.NotNil(t, resultUser)
+		assert.Equal(t, user.ID, resultUser.ID)
+		assert.Equal(t, user.Email, resultUser.Email)
 	})
 
 	t.Run("should return error when user not found", func(t *testing.T) {
-		helpers.WithTransaction(t, func(ctx context.Context, tx pgx.Tx, queries *db.Queries) {
-			// Setup: Create auth service
-			jwtSecret := []byte("test-secret-key")
-			testLogger := helpers.GetTestLogger(t)
-			service := auth.NewAuthService(queries, db.NewTxRunner(tx, queries), mail.NewMemorySender(), testLogger, auth.Options{JWTSecret: jwtSecret})
+		app := testkit.New(t)
+		service := newAuthService(app)
 
-			// Test: Get non-existent user
-			user, err := service.GetUserFromContext(ctx, 99999)
+		user, err := service.GetUserFromContext(app.Ctx, 99999)
 
-			// Assert: Should return error
-			assert.Error(t, err)
-			assert.Equal(t, auth.ErrUserNotFound, err)
-			assert.Nil(t, user)
-		})
+		assert.Error(t, err)
+		assert.Equal(t, auth.ErrUserNotFound, err)
+		assert.Nil(t, user)
 	})
 }

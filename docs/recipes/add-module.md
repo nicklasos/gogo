@@ -46,14 +46,16 @@ Add `orders.RegisterRoutes(app)` to `internal/server/server.go`. The API and the
 
 ## 4. Factory and seed data
 
-1. `internal/factory/order.go`: `func Order(t TB, conn DB, userID int32, opts ...OrderOption) *db.Order` with defaults for every column.
-2. Add a few records to `cmd/cli/internal/commands/seed.go`.
+1. A `FactoryCreateOrder :one` query in `internal/db/queries/factory.sql`, `RETURNING *`, then `make sqlc`.
+2. `internal/factory/order.go`: `func (f *Factory) Order(userID int32, opts ...OrderOption) *db.Order`, with defaults
+   for every column, calling that query (`tests/README.md` has the template).
+3. Add a few records to `cmd/cli/internal/commands/seed.go`.
 
 ## 5. Tests
 
 - `tests/unit/orders_policy_test.go` (or add to `policy_test.go`): a table of actor × expected result.
 - `tests/integration/orders_api_test.go`: for each route the success case, 401 without a token, validation failure,
-  404, and one 403 from the policy. Build data with `factory.*`, sign requests with `helpers.GenerateTestJWT`.
+  404, and one 403 from the policy. Start from `testkit.New(t)`, build data with `app.Create.*`, send requests with `app.As(user)`.
 - A request that makes a statement fail (a unique violation) must be the last one in its test: it aborts the test's transaction.
 
 ## 6. Finish

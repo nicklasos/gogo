@@ -46,9 +46,7 @@ func RunTest(app *internal.CLIApp, args []string) {
 
 	// Test basic query
 	fmt.Println("Testing basic database query...")
-	var dbVersion string
-	err := app.Database.QueryRow(ctx, "SELECT version()").Scan(&dbVersion)
-	if err != nil {
+	if _, err := app.Queries.DatabaseVersion(ctx); err != nil {
 		app.Logger.Error("Failed to get database version", "error", err)
 		fmt.Printf("Database query failed: %v\n", err)
 		return

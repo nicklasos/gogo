@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const databaseVersion = `-- name: DatabaseVersion :one
+SELECT version()::text AS version
+`
+
+func (q *Queries) DatabaseVersion(ctx context.Context) (string, error) {
+	row := q.db.QueryRow(ctx, databaseVersion)
+	var version string
+	err := row.Scan(&version)
+	return version, err
+}
+
 const healthcheck = `-- name: Healthcheck :exec
 SELECT 1
 `

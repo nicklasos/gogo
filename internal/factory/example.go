@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"app/internal/db"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type exampleAttrs struct {
@@ -19,8 +21,8 @@ func WithDescription(description string) ExampleOption {
 }
 
 // Example creates an example owned by the given user.
-func Example(t TB, conn DB, userID int32, opts ...ExampleOption) *db.Example {
-	t.Helper()
+func (f *Factory) Example(userID int32, opts ...ExampleOption) *db.Example {
+	f.t.Helper()
 
 	attrs := exampleAttrs{
 		title:       "Example " + unique(),
@@ -30,25 +32,24 @@ func Example(t TB, conn DB, userID int32, opts ...ExampleOption) *db.Example {
 		opt(&attrs)
 	}
 
-	var example db.Example
-	err := conn.QueryRow(ctx,
-		`INSERT INTO examples (user_id, title, description) VALUES ($1, $2, $3)
-		 RETURNING id, user_id, title, description, created_at, updated_at`,
-		userID, attrs.title, attrs.description,
-	).Scan(&example.ID, &example.UserID, &example.Title, &example.Description, &example.CreatedAt, &example.UpdatedAt)
+	example, err := f.queries.FactoryCreateExample(ctx, db.FactoryCreateExampleParams{
+		UserID:      userID,
+		Title:       attrs.title,
+		Description: pgtype.Text{String: attrs.description, Valid: true},
+	})
 	if err != nil {
-		t.Fatalf("factory.Example: %v", err)
+		f.t.Fatalf("factory.Example: %v", err)
 	}
 	return &example
 }
 
 // Examples creates count examples for the user, titled "<prefix> 001", "<prefix> 002", ...
-func Examples(t TB, conn DB, userID int32, count int, prefix string) []*db.Example {
-	t.Helper()
+func (f *Factory) Examples(userID int32, count int, prefix string) []*db.Example {
+	f.t.Helper()
 
 	examples := make([]*db.Example, count)
 	for i := range examples {
-		examples[i] = Example(t, conn, userID, WithTitle(fmt.Sprintf("%s %03d", prefix, i+1)))
+		examples[i] = f.Example(userID, WithTitle(fmt.Sprintf("%s %03d", prefix, i+1)))
 	}
 	return examples
 }

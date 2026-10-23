@@ -41,20 +41,19 @@ func RunSeed(app *internal.CLIApp, args []string) {
 		os.Exit(1)
 	}
 
-	t := seedReporter{}
-	db := app.Database
+	create := factory.New(seedReporter{}, app.Database)
 
-	factory.User(t, db, factory.WithEmail(seedAdminEmail), factory.WithName("Super Admin"), factory.WithRoles(middleware.RoleSuperAdmin))
-	factory.User(t, db, factory.WithEmail("manager@example.com"), factory.WithName("Manager"), factory.WithRoles(middleware.RoleAdmin))
+	create.User(factory.WithEmail(seedAdminEmail), factory.WithName("Super Admin"), factory.WithRoles(middleware.RoleSuperAdmin))
+	create.User(factory.WithEmail("manager@example.com"), factory.WithName("Manager"), factory.WithRoles(middleware.RoleAdmin))
 
-	user := factory.User(t, db, factory.WithEmail("user@example.com"), factory.WithName("Demo User"))
-	factory.User(t, db, factory.WithEmail("unverified@example.com"), factory.WithName("New Signup"), factory.Unverified())
+	user := create.User(factory.WithEmail("user@example.com"), factory.WithName("Demo User"))
+	create.User(factory.WithEmail("unverified@example.com"), factory.WithName("New Signup"), factory.Unverified())
 
-	factory.Example(t, db, user.ID,
+	create.Example(user.ID,
 		factory.WithTitle("Welcome"),
 		factory.WithDescription("## Hello\n\nThis example was created by `make seed`. Its description is **markdown**.\n\n- Edit it\n- Delete it\n- Add your own"),
 	)
-	factory.Examples(t, db, user.ID, 30, "Sample example")
+	create.Examples(user.ID, 30, "Sample example")
 
 	fmt.Println("Seeded. Every account has the password:", factory.DefaultPassword)
 	fmt.Println("  super admin  ", seedAdminEmail)

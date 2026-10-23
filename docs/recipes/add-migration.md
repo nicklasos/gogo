@@ -37,7 +37,8 @@
 
 ## After either
 
-- A changed column usually means a changed factory (`internal/factory/`) and response type (`types.go`).
+- A changed column usually means a changed factory query (`internal/db/queries/factory.sql`), factory
+  (`internal/factory/`) and response type (`types.go`). `make sqlc` names the factory queries that broke.
 - `make test`. If a response type changed: `make swagger`, then `make api-types` in gogo-front.
 
 ## Check

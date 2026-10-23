@@ -11,7 +11,7 @@ separate `cmd/cron` binary. Run them in one place only, or every job runs twice.
 3. **Make it safe to repeat.** A job can be interrupted by a deploy and run again later:
    delete or update by condition (`WHERE expires_at < now()`), never by a list computed earlier.
 4. **Log one line at the start and one at the end**, with counts when there are any. Return the error; the scheduler logs it.
-5. **Test** `Execute` directly in `tests/unit/`, inside `helpers.WithTransaction`, with data from `factory.*`.
+5. **Test** `Execute` directly in `tests/unit/`, starting from `testkit.New(t)`, with data from `app.Create.*`.
 6. `make test`.
 
 A job that needs a new dependency (mail, cache) gets it through `scheduler.Dependencies`,
