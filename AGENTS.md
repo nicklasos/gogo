@@ -207,6 +207,7 @@ make run              # Start server
 make run-test-db      # Start against TEST_DATABASE_URL
 make build            # Build binary
 make test             # Run all tests (auto-migrates test DB)
+make mutation-diff    # Mutation tests (gremlins) on code changed since origin/main; see tests/README.md
 make seed             # Accounts and sample data for an empty development database
 make cli migrate up   # Any console command; flags go after -- (make cli -- create-user --email a@b.c --password secret123)
 make cli-create-user EMAIL=a@b.c PASSWORD=secret123   # Create a user (default role super-admin)
@@ -247,6 +248,7 @@ make up / make down   # Postgres, Redis and Mailpit in Docker
 - **MemorySender** - Tests collect mail in memory (`server.Mail.Sent()`)
 - **GenerateTestJWT** - Helper for authenticated integration requests
 - **Factories** - `internal/factory` builds every record a test needs; `helpers.Actor(user)` turns a user into the actor a service expects
+- **Mutation testing** - `make mutation-diff` (Gremlins) checks that the tests catch small changes to the code you touched; a `LIVED` mutant is a missing assertion. `tests/README.md` explains the output
 
 ### Test Patterns
 ```go

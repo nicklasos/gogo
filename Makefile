@@ -81,6 +81,32 @@ test-coverage:
 	@if [ -n "$(TEST_DATABASE_URL)" ]; then goose -dir migrations postgres "$(TEST_DATABASE_URL)" up; fi
 	go test -cover ./tests/unit/... ./tests/integration/...
 
+# Mutation testing (gremlins, config in .gremlins.yaml). Each mutant runs the whole suite against TEST_DATABASE_URL.
+GREMLINS_VERSION ?= v0.6.0
+BASE ?= origin/main
+PKG ?= .
+# -count=1: when go test answers the coverage run from its cache, Gremlins sets per-mutant timeouts far too short.
+GREMLINS = GOFLAGS=-count=1 gremlins unleash
+
+mutation-install:
+	go install github.com/go-gremlins/gremlins/cmd/gremlins@$(GREMLINS_VERSION)
+
+# Only code changed since $(BASE). Gremlins mutates everything when the diff is empty, hence the early exit;
+# diff.relative makes the paths it reads from git diff match when the module is not at the repository root.
+mutation-diff:
+	@if git diff --quiet --merge-base $(BASE) -- '*.go'; then echo "No Go changes since $(BASE)."; else \
+		if [ -n "$(TEST_DATABASE_URL)" ]; then goose -dir migrations postgres "$(TEST_DATABASE_URL)" up; fi && \
+		GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.relative GIT_CONFIG_VALUE_0=true $(GREMLINS) --diff $(BASE) --output mutation-report.json; \
+	fi
+
+# One package or the whole module: make mutation PKG=./internal/auth
+mutation:
+	@if [ -n "$(TEST_DATABASE_URL)" ]; then goose -dir migrations postgres "$(TEST_DATABASE_URL)" up; fi
+	$(GREMLINS) --output mutation-report.json $(PKG)
+
+mutation-dry:
+	$(GREMLINS) --dry-run $(PKG)
+
 # Test database setup
 test-db-setup:
 	@if [ -z "$(TEST_DATABASE_URL)" ]; then echo "ERROR: TEST_DATABASE_URL not found in .env file or environment"; exit 1; fi
@@ -261,6 +287,10 @@ help:
 	@echo "    test-coverage       Run tests with coverage"
 	@echo "    test-db-setup       Apply migrations to test DB"
 	@echo "    test-db-reset       Reset and re-migrate test DB"
+	@echo "    mutation-install    Install gremlins (mutation testing)"
+	@echo "    mutation-diff       Mutation tests on code changed since BASE (default origin/main)"
+	@echo "    mutation            Mutation tests on PKG (default the whole module)"
+	@echo "    mutation-dry        List mutants without running tests"
 	@echo ""
 	@echo "  Docs / Cron / Deploy:"
 	@echo "    swagger             Generate Swagger docs"
@@ -268,6 +298,6 @@ help:
 	@echo "    supervisor-restart  Restart supervisord program"
 	@echo "    help                Show this help"
 
-.PHONY: up down docker-build seed run dev build build-cron build-cli run-cron run-cron-test-db run-test-db sqlc sqlc-install schema-dump swagger test test-unit test-integration test-verbose test-coverage test-db-setup test-db-reset test-with-db test-migrate-up test-migrate-down test-migrate-status fmt tidy clean air-install migrate-up migrate-down migrate-status migrate-reset migrate-create migrate-install cli-migrate-up cli-migrate-down cli-migrate-status cli-migrate-create cli-migrate-test-up cli-migrate-test-down cli-migrate-test-status cli-test cli-test-db cli-create-user cli-mail cli-help supervisor-restart supervisor-status supervisor-stop supervisor-start supervisor-logs supervisor-error-logs help
+.PHONY: up down docker-build seed run dev build build-cron build-cli run-cron run-cron-test-db run-test-db sqlc sqlc-install schema-dump swagger test test-unit test-integration test-verbose test-coverage test-db-setup test-db-reset test-with-db test-migrate-up test-migrate-down test-migrate-status mutation-install mutation-diff mutation mutation-dry fmt tidy clean air-install migrate-up migrate-down migrate-status migrate-reset migrate-create migrate-install cli-migrate-up cli-migrate-down cli-migrate-status cli-migrate-create cli-migrate-test-up cli-migrate-test-down cli-migrate-test-status cli-test cli-test-db cli-create-user cli-mail cli-help supervisor-restart supervisor-status supervisor-stop supervisor-start supervisor-logs supervisor-error-logs help
 
 endif

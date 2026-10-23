@@ -103,6 +103,55 @@ func TestExampleService_GetExample(t *testing.T) {
 }
 ```
 
+## Mutation Testing
+
+Coverage shows which lines ran; mutation testing shows whether a test would notice if they were wrong.
+[Gremlins](https://gremlins.dev) makes one small change at a time (`<` to `<=`, `+` to `-`, `==` to `!=`, `!cond`)
+and reruns the tests:
+
+- **KILLED**: a test failed, so the change was caught. Good.
+- **LIVED**: every test still passed. A behaviour is not asserted; add or tighten a test for that line.
+- **NOT COVERED**: no test runs that line at all.
+
+```bash
+make mutation-install                    # once
+make mutation-diff                       # code changed since origin/main (BASE=... to change)
+make mutation PKG=./internal/auth        # one package
+make mutation-dry PKG=./internal/auth    # list the mutants, run nothing
+make mutation                            # the whole module
+```
+
+The summary ends with **test efficacy** (killed / (killed + lived)) and **mutator coverage**.
+`mutation-report.json` has every mutant; list the survivors with:
+
+```bash
+jq -r '.files[] | .file_name as $f | .mutations[] | select(.status=="LIVED") | "\($f):\(.line):\(.column) \(.type)"' mutation-report.json
+```
+
+Then fix one survivor at a time:
+
+| Type | Change | Usually missing |
+|---|---|---|
+| `CONDITIONALS_BOUNDARY` | `<` and `<=`, `>` and `>=` | a case exactly at the limit |
+| `CONDITIONALS_NEGATION` | `==` and `!=`, `if x` and `if !x` | a test of the other branch |
+| `ARITHMETIC_BASE` | `+` and `-`, `*` and `/` | an assertion on the computed value |
+| `INCREMENT_DECREMENT` | `i++` and `i--` | an assertion on a count or offset |
+| `INVERT_NEGATIVES` | `-x` and `x` | an assertion on the sign |
+
+Some survivors are equivalent (the change cannot alter behaviour); leave those.
+
+**How it runs.** The tests live in `tests/`, not next to the code, so `.gremlins.yaml` sets `integration`
+(every mutant runs the whole suite against `TEST_DATABASE_URL`) and `coverpkg: ./internal/...` (coverage
+from `tests/` counts for `internal/`). Generated code, factories and `cmd/` are excluded. Each test has its
+own rolled-back transaction, so the parallel workers do not interfere.
+
+Gremlins reads your code and measures coverage in the first seconds, then works on copies in a temp folder:
+once the first mutants are reported you can keep editing. Do not run two mutation runs at once; they compete
+for the CPU and the test database, and slow mutants are reported as TIMED OUT.
+
+Mutation tests are run by hand and are not part of `make test` or CI. A run reports and does not fail;
+set `threshold.efficacy` in `.gremlins.yaml` to make it exit non-zero below that score.
+
 ## Configuration
 
 The test suite uses environment variables for configuration:

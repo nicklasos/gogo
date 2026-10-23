@@ -1,0 +1,16 @@
+# Mutation testing (https://gremlins.dev): make mutation-diff / make mutation. See tests/README.md.
+# Tests live in tests/, not next to the code, so every mutant runs the whole suite (integration)
+# and coverage from tests/ is credited to internal/ (coverpkg).
+unleash:
+  integration: true
+  coverpkg: ./internal/...
+  workers: 4
+  threshold:
+    efficacy: 0
+    mutant-coverage: 0
+  exclude-files:
+    - ^cmd/
+    - ^docs/
+    - ^tests/
+    - ^internal/db/
+    - ^internal/factory/

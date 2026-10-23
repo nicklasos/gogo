@@ -47,3 +47,5 @@ tmp/
 *.db
 *.sqlite
 *.sqlite3
+# Mutation testing
+mutation-report.json

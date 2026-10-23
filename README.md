@@ -83,7 +83,7 @@ curl -s localhost:8181/api/v1/auth/login \
   -d '{"email":"admin@example.com","password":"password123"}'
 ```
 
-Run the tests with `make test`; it migrates the test database first.
+Run the tests with `make test`; it migrates the test database first. `make mutation-diff` runs [mutation tests](tests/README.md#mutation-testing) on the code you changed.
 
 ## Features
 
@@ -155,6 +155,7 @@ make dev              # Hot reload server
 make run              # Start API
 make run-test-db      # Start API against TEST_DATABASE_URL
 make test             # Run all tests (auto-migrates test DB)
+make mutation-diff    # Mutation tests on your changes (Gremlins)
 
 # Database & SQLC
 make migrate-up       # Apply migrations
