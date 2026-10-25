@@ -107,6 +107,7 @@ Run the tests with `make test`; it migrates the test database first. `make mutat
 - **Uploads**: content-checked file upload behind a `Storage` interface, paginated list, and file serving without directory listings
 - **Docker and CI**: `docker-compose.yml` for local services, a production `Dockerfile`, and a GitHub Actions workflow
 - **Monitoring dashboard**: requests per route, errors and panics, SQL statistics by sqlc query name, recent logs and server load at `/_pulse`
+- **Error tracking**: optional Sentry reporting of panics and 5xx responses, tagged with `APP_ENV`; a slow or unreachable Sentry never affects requests
 - **Healthcheck**: `/health` checks PostgreSQL and Redis and answers 503 when either is down
 - **Scheduler**: Optional cron jobs (refresh-token cleanup)
 
@@ -139,6 +140,7 @@ gogo/
 │   ├── cache/                   # Redis + MemoryCache
 │   ├── mail/                    # SMTP mail service + MemorySender
 │   ├── monitoring/              # gopulse dashboard wiring
+│   ├── errortracking/           # Sentry: panics and 5xx responses
 │   ├── errs/                    # Domain errors
 │   └── scheduler/               # Cron jobs
 ├── migrations/                  # Goose database migrations
@@ -226,6 +228,7 @@ APP_ENV=development
 APP_NAME=MyApp                 # also the Redis cache key prefix
 CORS_ALLOWED_ORIGINS=          # comma-separated; empty or * allows any origin
 PULSE_PASSWORD=                # set it to turn on the monitoring dashboard at /_pulse (user: PULSE_USERNAME, default admin)
+SENTRY_DSN=                    # set it to report panics and 5xx responses to Sentry, tagged with APP_ENV
 MAIL_HOST=                     # plus MAIL_PORT, MAIL_SCHEME, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS, MAIL_FROM_NAME
 LOG_LEVEL=info
 ENABLE_SCHEDULER=false

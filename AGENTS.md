@@ -48,6 +48,7 @@ gogo/
 │   ├── cache/                   # RedisCache + MemoryCache
 │   ├── mail/                    # SMTP Service + MemorySender (tests)
 │   ├── monitoring/              # gopulse dashboard wiring (nil-safe helpers)
+│   ├── errortracking/           # Sentry: panics and 5xx responses (off without SENTRY_DSN)
 │   ├── errs/                    # Domain errors + WrapDatabaseError
 │   ├── scheduler/               # Cron (cleanup refresh tokens)
 │   └── responses.go             # PaginationMeta helper
@@ -147,6 +148,11 @@ In tests the runner is built on the test transaction, so `WithTx` becomes a save
 - Never call `app.Pulse` methods without a nil check; `monitoring.Record(app.Pulse, metric, key, value)` does the check for custom metrics.
 - Queries and logs are linked to their request only when they are given the request context: `c.Request.Context()` into services, `logger.InfoContext(ctx, ...)` for logs.
 - When something is slow or failing locally, the dashboard at `/_pulse` shows which route, which query and which log lines.
+
+## Error tracking
+- Sentry is wired through `internal/errortracking`: `Init` in `cmd/api/main.go`, the panic middleware in `server.NewEngine`, and `ErrorHandler` reports 5xx responses. All of it is off without `SENTRY_DSN`, and off in tests.
+- Return errors through `c.Error(...)` as usual; do not call Sentry from handlers or services.
+- Delivery is asynchronous with a short timeout, so an unreachable or unpaid Sentry drops events and never slows a request.
 
 ## Mail
 - Services take a `mail.Sender` (from `app.Mail`) and call `Send(ctx, mail.Message{To, Subject, Text, HTML})`.

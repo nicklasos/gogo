@@ -4,6 +4,7 @@ import (
 	"app/config"
 	"app/internal"
 	"app/internal/auth"
+	"app/internal/errortracking"
 	"app/internal/example"
 	"app/internal/health"
 	"app/internal/logger"
@@ -34,6 +35,10 @@ func NewEngine(cfg *config.Config, log *logger.Logger, p *pulse.Pulse) *gin.Engi
 		// After Recovery: a panic is recorded with its stack and re-raised for Recovery to answer
 		r.Use(pulsegin.Middleware(p))
 		pulsegin.Mount(r, p)
+	}
+	if errortracking.Enabled() {
+		// After Recovery for the same reason: the panic is reported and re-raised
+		r.Use(errortracking.Middleware())
 	}
 	// r.Use(middleware.RequestLogging(log))
 	r.Use(middleware.ErrorHandler(log))

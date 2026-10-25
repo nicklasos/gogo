@@ -16,6 +16,7 @@ import (
 	"app/internal"
 	"app/internal/cache"
 	"app/internal/db"
+	"app/internal/errortracking"
 	"app/internal/logger"
 	"app/internal/mail"
 	"app/internal/monitoring"
@@ -102,6 +103,11 @@ func main() {
 		"environment", cfg.Environment,
 		"debug", cfg.Debug,
 	)
+
+	if err := errortracking.Init(cfg); err != nil {
+		logger.Warn("Sentry is off: failed to initialize", "error", err)
+	}
+	defer errortracking.Flush()
 
 	if cfg.JWTSecretIsWeak() {
 		logger.Warn("JWT_SECRET is weak: fine for local development, refused when APP_ENV=production")

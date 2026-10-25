@@ -48,6 +48,9 @@ type Config struct {
 	PulsePassword string
 	PulsePath     string
 
+	// SentryDSN turns on error reporting to Sentry. Empty turns it off.
+	SentryDSN string
+
 	// Mail (SMTP)
 	MailMailer      string
 	MailScheme      string
@@ -99,6 +102,8 @@ func Load() (*Config, error) {
 		PulseUsername: getEnv("PULSE_USERNAME", "admin"),
 		PulsePassword: getEnv("PULSE_PASSWORD", ""),
 		PulsePath:     getEnv("PULSE_PATH", "/_pulse"),
+
+		SentryDSN: strings.TrimSpace(getEnv("SENTRY_DSN", "")),
 
 		MailMailer:      getEnv("MAIL_MAILER", "smtp"),
 		MailScheme:      getEnv("MAIL_SCHEME", "smtp"),

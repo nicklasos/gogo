@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"app/internal/errortracking"
 	"app/internal/errs"
 	"app/internal/logger"
 
@@ -101,6 +102,7 @@ func ErrorHandler(log *logger.Logger) gin.HandlerFunc {
 					"method", c.Request.Method,
 					"uri", c.Request.URL.Path,
 				)
+				errortracking.CaptureError(c, err.Err)
 			}
 
 			if !c.Writer.Written() {
