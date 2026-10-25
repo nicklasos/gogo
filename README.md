@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img alt="Go" src="https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white">
+  <img alt="Go" src="https://img.shields.io/badge/Go-1.27.3+-00ADD8?logo=go&logoColor=white">
   <img alt="Gin" src="https://img.shields.io/badge/Gin-1.10-008ECF?logo=gin&logoColor=white">
   <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-13+-4169E1?logo=postgresql&logoColor=white">
   <img alt="Redis" src="https://img.shields.io/badge/Redis-6+-FF4438?logo=redis&logoColor=white">
@@ -50,7 +50,7 @@ A monitoring dashboard is built in, served by the API itself through **[gopulse]
 ## Quick Start
 
 ### Prerequisites
-- Go 1.25+, PostgreSQL 13+, Redis 6+, Make
+- Go 1.27.3+, PostgreSQL 13+, Redis 6+, Make
 
 ### Setup
 ```bash
@@ -113,7 +113,7 @@ Run the tests with `make test`; it migrates the test database first. `make mutat
 
 ## Tech Stack
 
-- **Go 1.25+** + **Gin** - API framework
+- **Go 1.27.3+** + **Gin** - API framework
 - **PostgreSQL** + **pgx/v5** - Database with connection pooling
 - **SQLC** - Type-safe SQL code generation
 - **Redis** + **go-redis/v9** - Caching

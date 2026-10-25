@@ -67,7 +67,7 @@ gogo/
 - **Queries**: SQL queries managed by sqlc, type-safe database operations
 
 ## Technology Stack
-- Go 1.25+
+- Go 1.27.3+
 - Gin
 - PostgreSQL 15
 - pgx/v5
